@@ -1,5 +1,6 @@
 /* Streamulator test platform
  * Original by Michiel van der Vlag, adapted by Matti Dreef
+ * Slightly changed for use by Douwe Brinkhorst and Shreya Kshirasagar
  */
 
 #include "streamulator.h"
@@ -36,7 +37,7 @@ int main ()
 
 	// Call stream processing function
 	while (!inputStream.empty())
-		medianblur(inputStream, outputStream); // Add extra arguments here
+		invstripe(inputStream, outputStream,11); // Add extra arguments here
 
 
 	// Read output data

@@ -1,16 +1,14 @@
+/*
+ *  By Douwe Brinkhorst and Shreya Kshirasagar
+ *  Streaming interface related parts based from work by Michiel van der Vlag and Matti Dreef
+ */
+
 #include <stdint.h>
 #include <hls_stream.h>
 #include <ap_axi_sdata.h>
 
 #define WIDTH 1280
 #define HEIGHT 720
-
-#define GR(v) ((v)&0xFF)
-#define GG(v) (((v)&0xFF00)>>8)
-#define GB(v) (((v)&0xFF0000)>>16)
-#define SR(v) ((v)&0xFF)
-#define SG(v) (((v)&0xFF)<<8)
-#define SB(v) (((v)&0xFF)<<16)
 
 typedef ap_axiu<32,1,1,1> pixel_data;
 typedef hls::stream<pixel_data> pixel_stream;
@@ -20,9 +18,6 @@ void medianblur(pixel_stream &src, pixel_stream &dst)
 #pragma HLS INTERFACE ap_ctrl_none port=return
 #pragma HLS INTERFACE axis port=&src
 #pragma HLS INTERFACE axis port=&dst
-#pragma HLS INTERFACE s_axilite port=l
-#pragma HLS INTERFACE s_axilite port=c
-#pragma HLS INTERFACE s_axilite port=r
 #pragma HLS PIPELINE II=1
 
 // k determines the aperture size

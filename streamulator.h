@@ -1,5 +1,6 @@
 /* Streamulator test platform
  * Original by Michiel van der Vlag, adapted by Matti Dreef
+ *  Slightly changed for use by Douwe Brinkhorst and Shreya Kshirasagar
  */
 
 #ifndef INC_H
@@ -30,8 +31,8 @@ void medianblur(pixel_stream &src, pixel_stream &dst);
 
 
 // Streamulator image paths
-#define INPUT_IMG  "/home/douwe/Downloads/PYNQ_lab2019/examples/parrot.jpg"
-#define OUTPUT_IMG "/home/douwe/Downloads/PYNQ_lab2019/examples/output.jpg"
+#define INPUT_IMG  "D:\\Users\\Douwe\\Documents\\Vivado_RCD\\RCD\\RCD\\parrot.jpg"
+#define OUTPUT_IMG "D:\\Users\\Douwe\\Documents\\Vivado_RCD\\RCD\\RCD\\output.jpg"
 
 
 #endif // INC_H
