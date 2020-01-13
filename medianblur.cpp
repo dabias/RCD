@@ -1,6 +1,5 @@
 /*
  *  By Douwe Brinkhorst and Shreya Kshirasagar
- *  Streaming interface related parts based from work by Michiel van der Vlag and Matti Dreef
  */
 
 #include <stdint.h>
@@ -22,7 +21,7 @@ void medianblur(pixel_stream &src, pixel_stream &dst)
 
 // k determines the aperture size
 // this aperture is then a 2*k+1 by 2*k+1 grid
-const int k = 5;
+const int k = 3;
 const int bufferheight = 2*k+1;
 
 // buffer that stores several lines required for blur computation
@@ -34,7 +33,10 @@ static uint32_t tempbuffer [k];
 static uint16_t storage_index = 0;
 // index of the next pixel to go to output
 static int16_t output_index = 0;
+// counter that suppresses output during initialization
+static uint16_t init_counter = k;
 
+uint16_t weight = 0;
 uint16_t i = 0;
 uint16_t j = 1;
 uint16_t lowerX = 0;
@@ -44,17 +46,17 @@ pixel_data p_in;
 
 // Load input data from source
 src >> p_in;
-static pixel_data p_out = p_in;
+pixel_data p_out = p_in;
 
 //store the first part of the line in a temporary buffer
-if (storage_index<k) {
+if (storage_index < k) {
 	tempbuffer[storage_index] = p_in.data;
 }
-// preparations outputting new line
+// preparations for outputting new line
 else if (storage_index == k) {
 		// reset pixel output index
 		output_index = 0;
-        for(j=1;j<=2*k;j++) {
+        for(j=1;j<2*k+1;j++) {
             //shift the shift register
         	for(i=0;i<WIDTH-1;i++) {
               	  buffer[i][j] = buffer[i][j-1];
@@ -78,15 +80,30 @@ if ((lowerX = output_index-k) < 0){
 }
 
 // deal with nonexistent pixels to the right of the image
-if ((upperX = output_index+k)> WIDTH-1){
-    upperX = WIDTH-1;
+if ((upperX = output_index+k)> WIDTH){
+    upperX = WIDTH;
 }
-//TODO: calculate the actual median
-//p_out.data = median(buffer[lowerX:upperX][]);
+
+// if past initialization, compute the kernel
+if(init_counter == 0) {
+	// kernel is a uniform blur (for now at least)
+	//TODO: calculate the actual median
+	//compute the weight
+	weight = 1/((2*k+1)*(upperX-lowerX));
+	for (j= 0;j<2*k+1;j++) {
+		for (i = lowerX;i<upperX;i++) {
+			p_out.data += weight*buffer[i][j];
+		}
+	}
+
+}
 
 
 storage_index++;
 output_index++;
+if (init_counter > 0) {
+init_counter--;
+}
 if(p_in.last) {
      storage_index = 0;
 }

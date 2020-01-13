@@ -37,7 +37,7 @@ int main ()
 
 	// Call stream processing function
 	while (!inputStream.empty())
-		invstripe(inputStream, outputStream,11); // Add extra arguments here
+		medianblur(inputStream, outputStream); // Add extra arguments here
 
 
 	// Read output data
