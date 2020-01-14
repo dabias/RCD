@@ -11,7 +11,7 @@
 
 // k determines the aperture size
 // this aperture is then a 2*k+1 by 2*k+1 grid
-#define k 15
+#define k 0
 
 typedef ap_axiu<32,1,1,1> pixel_data;
 typedef hls::stream<pixel_data> pixel_stream;
@@ -41,6 +41,8 @@ static int16_t output_index = WIDTH;
 static uint16_t line_counter = k;
 // counter that suppresses output during initialization
 static uint16_t init_counter = line_counter;
+// flag that is false during initialization
+static bool past_init = false;
 
 int channel1,channel2,channel3,channel4 = 0;
 int channel1_out,channel2_out,channel3_out,channel4_out;
@@ -61,22 +63,6 @@ pixel_data p_out = p_in;
 if (storage_index < k) {
 	tempbuffer[storage_index] = p_in.data;
 }
-// preparations for outputting new line
-else if (storage_index == k-1) {
-		// reset pixel output index
-		output_index = 0;
-        for(j=1;j<2*k+1;j++) {
-            //shift the shift register
-        	for(i=0;i<WIDTH-1;i++) {
-              	  buffer[i][j] = buffer[i][j-1];
-        	}
-        	// move temporary buffer to main buffer
-        	for(i=0;i<k-1;i++) {
-                  buffer[i][0] = tempbuffer[i];
-        	}
-        }
-        buffer[k-1][0] = p_in.data;
-}
 
 else {
 	// store incoming pixel
@@ -95,12 +81,12 @@ if ((upperX = output_index+1+k)> WIDTH){
 
 
 // if past initialization, compute the kernel
-if(init_counter <= 0 & output_index<WIDTH) {
+if(past_init & (output_index<WIDTH)) {
 	// kernel is a uniform blur (for now at least)
 	//TODO: calculate the actual median
 	//compute the weight
-	weight = 1/((2*k+1)*(upperX-lowerX));
-	//weight = 1;
+	//weight = 1/((2*k+1)*(upperX-lowerX));
+	weight = 1;
 	for (j= 0;j<2*k+1;j++) {
 		for (i = lowerX;i<upperX;i++) {
 			 channel1 += weight*(buffer[i][j]&0xFF000000);
@@ -119,18 +105,30 @@ if(init_counter <= 0 & output_index<WIDTH) {
 }
 
 
+// preparations for outputting new line
+if (storage_index == k-1) {
+		// reset pixel output index
+		output_index = 0;
+		p_out.last = 1;
+        for(j=1;j<2*k+1;j++) {
+            //shift the shift register
+        	for(i=0;i<WIDTH-1;i++) {
+              	  buffer[i][j] = buffer[i][j-1];
+        	}
+        	// move temporary buffer to main buffer
+        	for(i=0;i<k-1;i++) {
+                  buffer[i][0] = tempbuffer[i];
+        	}
+        }
+} else{
+	p_out.last = 0;
+}
 
+//send user signal when a new output frame starts
 if (line_counter == 0){
 	p_out.user = 1;
 } else {
 	p_out.user = 0;
-}
-
-
-if (storage_index<k){
-	p_out.last = 1;
-} else{
-	p_out.last = 0;
 }
 
 storage_index++;
@@ -139,11 +137,18 @@ if(p_in.last) {
      storage_index = 0;
      if (line_counter > 0) {
      line_counter--;
-     init_counter--;
+     } else if (line_counter == 0){
+    	 past_init = true;
      }
 }
 
+if(p_in.user) {
+	line_counter = k;
+}
+
 // Write pixel to destination
+//if(past_init){
 dst << p_out;
+//}
 
 }
