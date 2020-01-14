@@ -9,6 +9,10 @@
 #define WIDTH 1280
 #define HEIGHT 720
 
+// k determines the aperture size
+// this aperture is then a 2*k+1 by 2*k+1 grid
+#define k 0
+
 typedef ap_axiu<32,1,1,1> pixel_data;
 typedef hls::stream<pixel_data> pixel_stream;
 
@@ -19,28 +23,31 @@ void medianblur(pixel_stream &src, pixel_stream &dst)
 #pragma HLS INTERFACE axis port=&dst
 #pragma HLS PIPELINE II=1
 
-// k determines the aperture size
-// this aperture is then a 2*k+1 by 2*k+1 grid
-const int k = 3;
 const int bufferheight = 2*k+1;
+int m;
 
 // buffer that stores several lines required for blur computation
-static uint32_t buffer [WIDTH][bufferheight];
+static uint32_t buffer [WIDTH][bufferheight] = {0};
 // a temporary buffer that stores incoming data of the new line while the previous one is still being processed
-static uint32_t tempbuffer [k];
+
+static uint32_t tempbuffer [k+1] = {0};
+
 
 //index of where to store the incoming pixel
 static uint16_t storage_index = 0;
 // index of the next pixel to go to output
-static int16_t output_index = 0;
+static int16_t output_index = WIDTH;
 // counter that suppresses output during initialization
 static uint16_t init_counter = k;
 
-uint16_t weight = 0;
+int channel1,channel2,channel3,channel4 = 0;
+int channel1_out,channel2_out,channel3_out,channel4_out;
+int weight = 0;
+int pixel_val = 0;
 uint16_t i = 0;
 uint16_t j = 1;
 uint16_t lowerX = 0;
-uint16_t upperX = WIDTH-1;
+uint16_t upperX = WIDTH;
 
 pixel_data p_in;
 
@@ -80,32 +87,42 @@ if ((lowerX = output_index-k) < 0){
 }
 
 // deal with nonexistent pixels to the right of the image
-if ((upperX = output_index+k)> WIDTH){
+if ((upperX = output_index+1+k)> WIDTH){
     upperX = WIDTH;
 }
 
+
 // if past initialization, compute the kernel
-if(init_counter == 0) {
+if(init_counter == 0 & output_index<WIDTH) {
 	// kernel is a uniform blur (for now at least)
 	//TODO: calculate the actual median
 	//compute the weight
 	weight = 1/((2*k+1)*(upperX-lowerX));
+	//weight = 1;
 	for (j= 0;j<2*k+1;j++) {
 		for (i = lowerX;i<upperX;i++) {
-			p_out.data += weight*buffer[i][j];
+			 channel1 += weight*(buffer[i][j]&0xFF000000);
+			 channel2 += weight*(buffer[i][j]&0x00FF0000);
+			 channel3 += weight*(buffer[i][j]&0x0000FF00);
+			 channel4 += weight*(buffer[i][j]&0x000000FF);
 		}
 	}
+	channel1_out = (channel1)&0xFF000000;
+	channel2_out = (channel2)&0x00FF0000;
+	channel3_out = (channel3)&0x0000FF00;
+	channel4_out = (channel4)&0x000000FF;
+	p_out.data = channel1_out|channel2_out|channel3_out|channel4_out;
 
 }
 
 
 storage_index++;
 output_index++;
-if (init_counter > 0) {
-init_counter--;
-}
 if(p_in.last) {
      storage_index = 0;
+     if (init_counter > 0) {
+     init_counter--;
+     }
 }
 
 // Write pixel to destination

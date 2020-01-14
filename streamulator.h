@@ -31,8 +31,8 @@ void medianblur(pixel_stream &src, pixel_stream &dst);
 
 
 // Streamulator image paths
-#define INPUT_IMG  "D:\\Users\\Douwe\\Documents\\Vivado_RCD\\RCD\\RCD\\parrot.jpg"
-#define OUTPUT_IMG "D:\\Users\\Douwe\\Documents\\Vivado_RCD\\RCD\\RCD\\output.jpg"
+#define INPUT_IMG  "/home/douwe/Documents/RCD/parrot.jpg"
+#define OUTPUT_IMG "/home/douwe/Documents/RCD/output.jpg"
 
 
 #endif // INC_H
