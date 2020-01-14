@@ -11,7 +11,7 @@
 
 // k determines the aperture size
 // this aperture is then a 2*k+1 by 2*k+1 grid
-#define k 0
+#define k 15
 
 typedef ap_axiu<32,1,1,1> pixel_data;
 typedef hls::stream<pixel_data> pixel_stream;
@@ -37,8 +37,10 @@ static uint32_t tempbuffer [k+1] = {0};
 static uint16_t storage_index = 0;
 // index of the next pixel to go to output
 static int16_t output_index = WIDTH;
+//counter that tracks when the next output frame starts
+static uint16_t line_counter = k;
 // counter that suppresses output during initialization
-static uint16_t init_counter = k;
+static uint16_t init_counter = line_counter;
 
 int channel1,channel2,channel3,channel4 = 0;
 int channel1_out,channel2_out,channel3_out,channel4_out;
@@ -60,7 +62,7 @@ if (storage_index < k) {
 	tempbuffer[storage_index] = p_in.data;
 }
 // preparations for outputting new line
-else if (storage_index == k) {
+else if (storage_index == k-1) {
 		// reset pixel output index
 		output_index = 0;
         for(j=1;j<2*k+1;j++) {
@@ -73,7 +75,7 @@ else if (storage_index == k) {
                   buffer[i][0] = tempbuffer[i];
         	}
         }
-        buffer[k][0] = p_in.data;
+        buffer[k-1][0] = p_in.data;
 }
 
 else {
@@ -93,7 +95,7 @@ if ((upperX = output_index+1+k)> WIDTH){
 
 
 // if past initialization, compute the kernel
-if(init_counter == 0 & output_index<WIDTH) {
+if(init_counter <= 0 & output_index<WIDTH) {
 	// kernel is a uniform blur (for now at least)
 	//TODO: calculate the actual median
 	//compute the weight
@@ -111,16 +113,32 @@ if(init_counter == 0 & output_index<WIDTH) {
 	channel2_out = (channel2)&0x00FF0000;
 	channel3_out = (channel3)&0x0000FF00;
 	channel4_out = (channel4)&0x000000FF;
+	//p_out.data = channel1_out|(p_in.data&0x00FFFF00)|channel4_out;
+	//p_out.data = (p_in.data&0xFFFF0000)|channel3_out|(p_in.data&0x000000FF);
 	p_out.data = channel1_out|channel2_out|channel3_out|channel4_out;
-
 }
 
+
+
+if (line_counter == 0){
+	p_out.user = 1;
+} else {
+	p_out.user = 0;
+}
+
+
+if (storage_index<k){
+	p_out.last = 1;
+} else{
+	p_out.last = 0;
+}
 
 storage_index++;
 output_index++;
 if(p_in.last) {
      storage_index = 0;
-     if (init_counter > 0) {
+     if (line_counter > 0) {
+     line_counter--;
      init_counter--;
      }
 }
