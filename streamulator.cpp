@@ -62,7 +62,6 @@ int main ()
 		pixeldata[rowsindex][cols] = streamOut.data;
 		rows++;
 		rowsindex++;
-		//ensure that a new pixel without the 'last' flag is available
 		outputStream.read(streamOut);
 	}
 

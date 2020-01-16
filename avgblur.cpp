@@ -30,7 +30,7 @@ void avgblur(pixel_stream &src, pixel_stream &dst,uint16_t k)
 // this aperture is then a 2*k+1 by 2*k+1 grid
 // this can be a user input
 // kmax is the maximum k enabled by the hardware
-const uint16_t kmax = 0;
+const uint16_t kmax = 16;
 
 if (k>kmax) {
 	k = 0;
@@ -65,7 +65,7 @@ pixel_data p_in;
 
 // Load input data from source
 src >> p_in;
-pixel_data p_out = p_in;
+pixel_data p_out;
 
 //store the first part of the line in row 0
 if (storage_index < k) {
@@ -77,32 +77,31 @@ else {
     buffer[storage_index][1] = p_in.data;
 }
 
-
-
 // if past initialization, compute the kernel
 if(past_init) {
-	// kernel is a uniform blur (for now at least)
-	//TODO: calculate the actual median
 	lowerX = output_index-k;
 	upperX = output_index+k;
 
-	for (j= 1;j<(2*k+2);j++) {
+	for (j= 1;j<(2*k+2);j++)
 		for (i = lowerX;i<=upperX;i++) {
-			//if the pixel exists
-			if (i<0) {
-				channel1 += GR(buffer[0][j]);
-				channel2 += GG(buffer[0][j]);
-				channel3 += GB(buffer[0][j]);
-			} else if (i>=WIDTH){
-				channel1 += GR(buffer[WIDTH-1][j]);
-				channel2 += GG(buffer[WIDTH-1][j]);
-				channel3 += GB(buffer[WIDTH-1][j]);
-			} else {
-				channel1 += GR(buffer[i][j]);
-				channel2 += GG(buffer[i][j]);
-				channel3 += GB(buffer[i][j]);
-			}
-		}
+			//do boundary checks
+			int16_t ii=i;
+			int16_t jj=j;
+			//deal with nonexistent pixels to the left of the frame
+			if (i<0)ii = 0;
+			//deal with nonexistent pixels to the right of the frame
+			if (i>=WIDTH) ii = WIDTH;
+			//deal with nonexistent pixels above the frame
+			//this is based on the fact that the bottom part of the buffer
+			//still contains data from the previous frame
+			if ((line_counter>k)&(j>line_counter)) jj = line_counter;
+			//deal with nonexistent pixels below the frame
+			//this is based on the fact that the top part of the buffer
+			//already contains data from the next frame
+			if ((line_counter<=k)&(j<=line_counter)) jj = line_counter+1;
+			channel1 += GR(buffer[ii][jj]);
+			channel2 += GG(buffer[ii][jj]);
+			channel3 += GB(buffer[ii][jj]);
 	}
 	channel1_out = SR(channel1/(2*k+1));
 	channel2_out = SG(channel2/(2*k+1));
@@ -112,15 +111,15 @@ if(past_init) {
 
 }
 
-storage_index++;
-output_index++;
-
 //send user signal when a new output frame starts
-if (line_counter == 0){
+if ((line_counter == k+1)&&(output_index==0)){
 	p_out.user = 1;
 } else {
 	p_out.user = 0;
 }
+
+storage_index++;
+output_index++;
 
 if(p_in.last) {
      storage_index = 0;
@@ -132,25 +131,23 @@ if (storage_index == k) {
 		// reset pixel output index
 		output_index = 0;
 		p_out.last = 1;
-
-	     if (line_counter > 0) {
-	     line_counter--;
-	     } else if (line_counter == 0){
+	     line_counter++;
+	     if (line_counter > k){
 	    	 //triggers when k lines have come in, enough to start the output
 	    	 past_init = true;
 	     }
-        for(j=1;j<(2*k+1);j++) {
+        for(j=1;j<(2*k+2);j++)
             //shift the shift register
         	for(i=0;i<WIDTH;i++) {
               	  buffer[i][j] = buffer[i][j-1];
-        	}
+
         }
 } else{
 	p_out.last = 0;
 }
 
 if(p_in.user) {
-	line_counter = k;
+	line_counter = 0;
 }
 
 // Write pixel to destination
