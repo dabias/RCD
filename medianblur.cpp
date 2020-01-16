@@ -11,7 +11,7 @@
 
 // k determines the aperture size
 // this aperture is then a 2*k+1 by 2*k+1 grid
-#define k 0
+#define k 30
 
 typedef ap_axiu<32,1,1,1> pixel_data;
 typedef hls::stream<pixel_data> pixel_stream;
@@ -44,7 +44,7 @@ static uint16_t init_counter = line_counter;
 // flag that is false during initialization
 static bool past_init = false;
 
-int channel1,channel2,channel3,channel4 = 0;
+uint64_t channel1,channel2,channel3,channel4 = 0;
 int channel1_out,channel2_out,channel3_out,channel4_out;
 int weight = 0;
 int pixel_val = 0;
@@ -75,8 +75,8 @@ if ((lowerX = output_index-k) < 0){
 }
 
 // deal with nonexistent pixels to the right of the image
-if ((upperX = output_index+1+k)> WIDTH){
-    upperX = WIDTH;
+if ((upperX = output_index+k)> WIDTH-1){
+    upperX = WIDTH-1;
 }
 
 
@@ -85,23 +85,28 @@ if(past_init & (output_index<WIDTH)) {
 	// kernel is a uniform blur (for now at least)
 	//TODO: calculate the actual median
 	//compute the weight
-	//weight = 1/((2*k+1)*(upperX-lowerX));
-	weight = 1;
+	weight = (2*k+1)*(1+upperX-lowerX);
+
+	//weight = 1;
+	//i = output_index;
+	//weight = 1/(1+upperX-lowerX);
 	for (j= 0;j<2*k+1;j++) {
 		for (i = lowerX;i<upperX;i++) {
-			 channel1 += weight*(buffer[i][j]&0xFF000000);
-			 channel2 += weight*(buffer[i][j]&0x00FF0000);
-			 channel3 += weight*(buffer[i][j]&0x0000FF00);
-			 channel4 += weight*(buffer[i][j]&0x000000FF);
+			 channel1 += (buffer[i][j]&0xFF000000);
+			 channel2 += (buffer[i][j]&0x00FF0000);
+			 channel3 += (buffer[i][j]&0x0000FF00);
+			 channel4 += (buffer[i][j]&0x000000FF);
 		}
 	}
-	channel1_out = (channel1)&0xFF000000;
-	channel2_out = (channel2)&0x00FF0000;
-	channel3_out = (channel3)&0x0000FF00;
-	channel4_out = (channel4)&0x000000FF;
+	channel1_out = ((channel1)/weight)&0xFF000000;
+	channel2_out = ((channel2)/weight)&0x00FF0000;
+	channel3_out = ((channel3)/weight)&0x0000FF00;
+	channel4_out = ((channel4)/weight)&0x000000FF;
 	//p_out.data = channel1_out|(p_in.data&0x00FFFF00)|channel4_out;
 	//p_out.data = (p_in.data&0xFFFF0000)|channel3_out|(p_in.data&0x000000FF);
 	p_out.data = channel1_out|channel2_out|channel3_out|channel4_out;
+
+	//p_out.data = buffer[output_index][k];
 }
 
 
@@ -147,8 +152,6 @@ if(p_in.user) {
 }
 
 // Write pixel to destination
-//if(past_init){
 dst << p_out;
-//}
 
 }
