@@ -99,15 +99,15 @@ if(past_init && (output_index<WIDTH)) {
 	}
 
 	//channel1_out = ((channel1)/weight)&0xFF000000;
-	//channel2_out = ((channel2)/weight)&0x00FF0000;
-	//channel3_out = ((channel3)/weight)&0x0000FF00;
-	//channel4_out = ((channel4)/weight)&0x000000FF;
+	channel2_out = ((channel2)/weight)&0x00FF0000;
+	channel3_out = ((channel3)/weight)&0x0000FF00;
+	channel4_out = ((channel4)/weight)&0x000000FF;
 
 	//set specific channels to pass through
 	//channel1_out = buffer[output_index][k+1]&0xFF000000;
-	channel2_out = buffer[output_index][k+1]&0x00FF0000;
-	channel3_out = buffer[output_index][k+1]&0x0000FF00;
-	channel4_out = buffer[output_index][k+1]&0x000000FF;
+	//channel2_out = buffer[output_index][k+1]&0x00FF0000;
+	//channel3_out = buffer[output_index][k+1]&0x0000FF00;
+	//channel4_out = buffer[output_index][k+1]&0x000000FF;
 
 	//set specific channels to be off
 	channel1_out = 0;
