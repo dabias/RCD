@@ -1,6 +1,6 @@
 /*
  *  By Douwe Brinkhorst and Shreya Kshirasagar
- *
+ *	Many parrots were harmed in the making of this code
  */
 
 #include <stdint.h>
@@ -30,8 +30,6 @@ void medianblur(pixel_stream &src, pixel_stream &dst)
 #pragma HLS INTERFACE axis port=&dst
 #pragma HLS PIPELINE II=1
 
-int m;
-
 // buffer that stores several lines required for blur computation
 static uint32_t buffer [WIDTH][2*k+2] = {0};
 
@@ -46,11 +44,9 @@ static uint16_t init_counter = line_counter;
 // flag that is set to true when enough lines are available to start output
 static bool past_init = false;
 
-// channel 1 = alpha, 2 = red, 3 = green, 4 = blue
-uint64_t channel1,channel2,channel3,channel4 = 0;
-uint32_t channel1_out,channel2_out,channel3_out,channel4_out;
+int channel1,channel2,channel3;
+int channel1_out,channel2_out,channel3_out;
 int weight = 0;
-int pixel_val = 0;
 int16_t i = 0;
 int16_t j = 1;
 int16_t lowerX = 0;
@@ -91,32 +87,29 @@ if(past_init && (output_index<WIDTH)) {
 		for (i = lowerX;i<=upperX;i++) {
 			//if the pixel exists
 			if ((i>=0)&&(i<(WIDTH))) {
-				channel2 += GR(buffer[i][j]);
-				channel3 += GG(buffer[i][j]);
-				channel4 += GB(buffer[i][j]);
+				channel1 += GB(buffer[i][j]);
+				channel2 += GG(buffer[i][j]);
+				channel3 += GR(buffer[i][j]);
 			}
 		}
 	}
 
-	//channel1_out = ((channel1)/weight)&0xFF000000;
-	channel2_out = SR((channel2)/weight);
-	channel3_out = SG((channel3)/weight);
-	channel4_out = SB((channel4)/weight);
-
+	channel1_out = SB((channel1)/weight);
+	channel2_out = SG((channel2)/weight);
+	channel3_out = SR((channel3)/weight);
+/*
 	//set specific channels to pass through
-	//channel1_out = buffer[output_index][k+1]&0xFF000000;
-	//channel2_out = buffer[output_index][k+1]&0x00FF0000;
-	//channel3_out = buffer[output_index][k+1]&0x0000FF00;
-	//channel4_out = buffer[output_index][k+1]&0x000000FF;
-
+	channel1_out = buffer[output_index][k+1]&0x000000FF;
+	channel2_out = buffer[output_index][k+1]&0x0000FF00;
+	channel3_out = buffer[output_index][k+1]&0x00FF0000;
+*/
 	//set specific channels to be off
-	channel1_out = 0;
+	//channel1_out = 0;
 	//channel2_out = 0;
 	//channel3_out = 0;
-	//channel4_out = 0;
 
 	//p_out.data = buffer[output_index][k];
-	p_out.data = channel2_out|channel3_out|channel4_out;
+	p_out.data = channel1_out|channel2_out|channel3_out;
 
 }
 
