@@ -16,22 +16,31 @@
 #define SG(v) (((v)&0xFF)<<8)
 #define SR(v) (((v)&0xFF)<<16)
 
-// k determines the aperture size
-// this aperture is then a 2*k+1 by 2*k+1 grid
-#define k 0
-
 typedef ap_axiu<32,1,1,1> pixel_data;
 typedef hls::stream<pixel_data> pixel_stream;
 
-void medianblur(pixel_stream &src, pixel_stream &dst)
+void avgblur(pixel_stream &src, pixel_stream &dst,uint16_t k)
 {
 #pragma HLS INTERFACE ap_ctrl_none port=return
 #pragma HLS INTERFACE axis port=&src
 #pragma HLS INTERFACE axis port=&dst
 #pragma HLS PIPELINE II=1
 
+// input k determines the aperture size
+// this aperture is then a 2*k+1 by 2*k+1 grid
+// this can be a user input
+// kmax is the maximum k enabled by the hardware
+const uint16_t kmax = 7;
+
+if (k>kmax) {
+	k = 0;
+}
+
+//input override for testing
+k =0;
+
 // buffer that stores several lines required for blur computation
-static uint32_t buffer [WIDTH][2*k+2] = {0};
+static uint32_t buffer [WIDTH][2*kmax+2] = {0};
 
 //index of where to store the incoming pixel
 static int16_t storage_index = 0;
@@ -42,8 +51,9 @@ static uint16_t line_counter = k;
 // counter that suppresses output during initialization
 static uint16_t init_counter = line_counter;
 // flag that is set to true when enough lines are available to start output
-static bool past_init = false;
 static bool preflag = false;
+// flag that is set to true when output actually should start
+static bool past_init = false;
 
 
 uint16_t channel1,channel2,channel3 = 0;

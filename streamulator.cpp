@@ -14,7 +14,7 @@ int main ()
 	hls::stream<pixel_data> outputStream;
 	pixel_data streamIn;
 	pixel_data streamOut;
-	uint32_t mask = 3;
+	uint32_t k = 8;
 
 
 	// Read input image
@@ -37,7 +37,7 @@ int main ()
 
 	// Call stream processing function
 	while (!inputStream.empty())
-		medianblur(inputStream, outputStream); // Add extra arguments here
+		avgblur(inputStream, outputStream,k); // Add extra arguments here
 
 
 	// Read output data

@@ -27,7 +27,7 @@ typedef hls::stream<pixel_data> pixel_stream;
 // Stream processing function
 void stream (pixel_stream&, pixel_stream&);
 void invstripe(pixel_stream &src, pixel_stream &dst, uint32_t mask);
-void medianblur(pixel_stream &src, pixel_stream &dst);
+void avgblur(pixel_stream &src, pixel_stream &dst, uint16_t k);
 
 
 // Streamulator image paths
