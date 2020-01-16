@@ -50,7 +50,7 @@ int main ()
 		}
 	// counter used for determining on which row to store the pixels
 	int rowsindex = 0;
-	// iterate over the rows, but columns are controlled by the signal last
+	// moving to next row is controlled by last signal from stream
 	while(rows < HEIGHT) {
 		int cols = 0;
 		while (!streamOut.last) {
@@ -58,9 +58,11 @@ int main ()
 			cols++;
 			outputStream.read(streamOut);
 		}
+		//process the final pixel of the row
 		pixeldata[rowsindex][cols] = streamOut.data;
 		rows++;
 		rowsindex++;
+		//ensure that a new pixel without the 'last' flag is available
 		outputStream.read(streamOut);
 	}
 
