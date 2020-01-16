@@ -1,6 +1,6 @@
 /* Streamulator test platform
  * Original by Michiel van der Vlag, adapted by Matti Dreef
- * Slightly changed for use by Douwe Brinkhorst and Shreya Kshirasagar
+ * Adapted to obey user and last signals by Douwe Brinkhorst and Shreya Kshirasagar
  */
 
 #include "streamulator.h"
@@ -39,14 +39,28 @@ int main ()
 	while (!inputStream.empty())
 		avgblur(inputStream, outputStream,k); // Add extra arguments here
 
-
-	// Read output data
-	for (int rows=0; rows < HEIGHT; rows++)
-		for (int cols=0; cols < WIDTH; cols++)
-		{
+	//read the output
+	int rows = 0;
+	// Wait for user signal
+	outputStream.read(streamOut);
+		while(!streamOut.user) {
+			if (streamOut.last) {
+				rows++;
+			}
 			outputStream.read(streamOut);
-			pixeldata[rows][cols] = streamOut.data;
 		}
+	// iterate over the rows, but columns are controlled by the signal last
+	while(rows < HEIGHT) {
+		int cols = 0;
+		while (!streamOut.last) {
+			pixeldata[rows][cols] = streamOut.data;
+			cols++;
+			outputStream.read(streamOut);
+		}
+		pixeldata[rows][cols] = streamOut.data;
+		rows++;
+		outputStream.read(streamOut);
+	}
 
 
 	// Save image by converting data array to matrix
