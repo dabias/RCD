@@ -77,7 +77,6 @@ if(past_init && (output_index<WIDTH)) {
 	lowerX = output_index-k;
 	upperX = output_index+k;
 
-	//i = output_index;
 	for (j= 1;j<2*k+2;j++) {
 		for (i = lowerX;i<=upperX;i++) {
 			//if the pixel exists
@@ -89,16 +88,9 @@ if(past_init && (output_index<WIDTH)) {
 			}
 		}
 	}
-
-	channel1_out = SR((channel1)/weight);
-	channel2_out = SG((channel2)/weight);
-	channel3_out = SB((channel3)/weight);
-/*
-	//set specific channels to pass through
-	channel1_out = buffer[output_index][k+1]&0x00FF0000;
-	channel2_out = buffer[output_index][k+1]&0x0000FF00;
-	channel3_out = buffer[output_index][k+1]&0x000000FF;
-*/
+	channel1_out = SR((channel1/weight));
+	channel2_out = SG((channel2/weight));
+	channel3_out = SB((channel3/weight));
 
 	//p_out.data = buffer[output_index][k];
 	p_out.data = channel1_out|channel2_out|channel3_out;
