@@ -36,13 +36,15 @@ static uint32_t buffer [WIDTH][2*k+2] = {0};
 //index of where to store the incoming pixel
 static int16_t storage_index = 0;
 // index of the next pixel to go to output
-static int16_t output_index = WIDTH;
+static int16_t output_index = 0;
 //counter that tracks when the next output frame starts
 static uint16_t line_counter = k;
 // counter that suppresses output during initialization
 static uint16_t init_counter = line_counter;
 // flag that is set to true when enough lines are available to start output
 static bool past_init = false;
+static bool preflag = false;
+
 
 uint16_t channel1,channel2,channel3 = 0;
 uint32_t channel1_out,channel2_out,channel3_out = 0;
@@ -70,7 +72,7 @@ else {
 
 
 // if past initialization, compute the kernel
-if(past_init && (output_index<WIDTH)) {
+if(past_init) {
 	// kernel is a uniform blur (for now at least)
 	//TODO: calculate the actual median
 	lowerX = output_index-k;
@@ -79,7 +81,7 @@ if(past_init && (output_index<WIDTH)) {
 	for (j= 1;j<(2*k+2);j++) {
 		for (i = lowerX;i<=upperX;i++) {
 			//if the pixel exists
-			if ((i>=0)&&(i<(WIDTH))) {
+			if ((i>=0)&&(i<WIDTH)) {
 				channel1 += GR(buffer[i][j]);
 				channel2 += GG(buffer[i][j]);
 				channel3 += GB(buffer[i][j]);
@@ -121,6 +123,9 @@ if (storage_index == k) {
 		// reset pixel output index
 		output_index = 0;
 		p_out.last = 1;
+		if (preflag){
+			past_init=true;
+		}
         for(j=1;j<(2*k+1);j++) {
             //shift the shift register
         	for(i=0;i<WIDTH;i++) {
