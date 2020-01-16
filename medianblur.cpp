@@ -18,7 +18,7 @@
 
 // k determines the aperture size
 // this aperture is then a 2*k+1 by 2*k+1 grid
-#define k 16
+#define k 0
 
 typedef ap_axiu<32,1,1,1> pixel_data;
 typedef hls::stream<pixel_data> pixel_stream;
@@ -76,7 +76,7 @@ if(past_init && (output_index<WIDTH)) {
 	lowerX = output_index-k;
 	upperX = output_index+k;
 
-	for (j= 1;j<2*k+2;j++) {
+	for (j= 1;j<(2*k+2);j++) {
 		for (i = lowerX;i<=upperX;i++) {
 			//if the pixel exists
 			if ((i>=0)&&(i<(WIDTH))) {
@@ -86,9 +86,9 @@ if(past_init && (output_index<WIDTH)) {
 			}
 		}
 	}
-	channel1_out = SR((channel1/(2*k+1)));
-	channel2_out = SG((channel2/(2*k+1)));
-	channel3_out = SB((channel3/(2*k+1)));
+	channel1_out = SR(channel1/(2*k+1));
+	channel2_out = SG(channel2/(2*k+1));
+	channel3_out = SB(channel3/(2*k+1));
 
 	//p_out.data = buffer[output_index][k];
 	p_out.data = channel1_out|channel2_out|channel3_out;
@@ -121,7 +121,7 @@ if (storage_index == k) {
 		// reset pixel output index
 		output_index = 0;
 		p_out.last = 1;
-        for(j=1;j<2*k+1;j++) {
+        for(j=1;j<(2*k+1);j++) {
             //shift the shift register
         	for(i=0;i<WIDTH;i++) {
               	  buffer[i][j] = buffer[i][j-1];
