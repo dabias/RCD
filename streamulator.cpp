@@ -14,8 +14,7 @@ int main ()
 	hls::stream<pixel_data> outputStream;
 	pixel_data streamIn;
 	pixel_data streamOut;
-	uint32_t k = 8;
-
+	uint32_t k = 7;
 
 	// Read input image
 	cv::Mat sourceImg = cv::imread(INPUT_IMG);
@@ -49,16 +48,19 @@ int main ()
 			}
 			outputStream.read(streamOut);
 		}
+	// counter used for determining on which row to store the pixels
+	int rowsindex = 0;
 	// iterate over the rows, but columns are controlled by the signal last
 	while(rows < HEIGHT) {
 		int cols = 0;
 		while (!streamOut.last) {
-			pixeldata[rows][cols] = streamOut.data;
+			pixeldata[rowsindex][cols] = streamOut.data;
 			cols++;
 			outputStream.read(streamOut);
 		}
-		pixeldata[rows][cols] = streamOut.data;
+		pixeldata[rowsindex][cols] = streamOut.data;
 		rows++;
+		rowsindex++;
 		outputStream.read(streamOut);
 	}
 
