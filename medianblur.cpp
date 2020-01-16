@@ -1,5 +1,6 @@
 /*
  *  By Douwe Brinkhorst and Shreya Kshirasagar
+ *
  */
 
 #include <stdint.h>
@@ -8,6 +9,12 @@
 
 #define WIDTH 1280
 #define HEIGHT 720
+#define GR(v) ((v)&0xFF)
+#define GG(v) (((v)&0xFF00)>>8)
+#define GB(v) (((v)&0xFF0000)>>16)
+#define SR(v) ((v)&0xFF)
+#define SG(v) (((v)&0xFF)<<8)
+#define SB(v) (((v)&0xFF)<<16)
 
 // k determines the aperture size
 // this aperture is then a 2*k+1 by 2*k+1 grid
@@ -39,8 +46,9 @@ static uint16_t init_counter = line_counter;
 // flag that is set to true when enough lines are available to start output
 static bool past_init = false;
 
+// channel 1 = alpha, 2 = red, 3 = green, 4 = blue
 uint64_t channel1,channel2,channel3,channel4 = 0;
-int channel1_out,channel2_out,channel3_out,channel4_out;
+uint32_t channel1_out,channel2_out,channel3_out,channel4_out;
 int weight = 0;
 int pixel_val = 0;
 int16_t i = 0;
@@ -83,27 +91,32 @@ if(past_init && (output_index<WIDTH)) {
 		for (i = lowerX;i<=upperX;i++) {
 			//if the pixel exists
 			if ((i>=0)&&(i<(WIDTH))) {
-				channel1 += (buffer[i][j]&0xFF000000);
-				channel2 += (buffer[i][j]&0x00FF0000);
-				channel3 += (buffer[i][j]&0x0000FF00);
-				channel4 += (buffer[i][j]&0x000000FF);
+				channel2 += GR(buffer[i][j]);
+				channel3 += GG(buffer[i][j]);
+				channel4 += GB(buffer[i][j]);
 			}
 		}
 	}
-/*
-	channel1_out = ((channel1)/weight)&0xFF000000;
-	channel2_out = ((channel2)/weight)&0x00FF0000;
-	channel3_out = ((channel3)/weight)&0x0000FF00;
-	channel4_out = ((channel4)/weight)&0x000000FF;
-*/
+
+	//channel1_out = ((channel1)/weight)&0xFF000000;
+	//channel2_out = ((channel2)/weight)&0x00FF0000;
+	//channel3_out = ((channel3)/weight)&0x0000FF00;
+	//channel4_out = ((channel4)/weight)&0x000000FF;
+
 	//set specific channels to pass through
-	channel1_out = buffer[output_index][k+1]&0xFF000000;
+	//channel1_out = buffer[output_index][k+1]&0xFF000000;
 	channel2_out = buffer[output_index][k+1]&0x00FF0000;
 	channel3_out = buffer[output_index][k+1]&0x0000FF00;
 	channel4_out = buffer[output_index][k+1]&0x000000FF;
 
+	//set specific channels to be off
+	channel1_out = 0;
+	//channel2_out = 0;
+	//channel3_out = 0;
+	//channel4_out = 0;
+
 	//p_out.data = buffer[output_index][k];
-	p_out.data = channel1_out|channel2_out|channel3_out|channel4_out;
+	p_out.data = channel2_out|channel3_out|channel4_out;
 
 }
 
