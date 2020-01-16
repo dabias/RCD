@@ -11,7 +11,7 @@
 
 // k determines the aperture size
 // this aperture is then a 2*k+1 by 2*k+1 grid
-#define k 30
+#define k 0
 
 typedef ap_axiu<32,1,1,1> pixel_data;
 typedef hls::stream<pixel_data> pixel_stream;
@@ -23,35 +23,34 @@ void medianblur(pixel_stream &src, pixel_stream &dst)
 #pragma HLS INTERFACE axis port=&dst
 #pragma HLS PIPELINE II=1
 
-const int bufferheight = 2*k+1;
 int m;
 
 // buffer that stores several lines required for blur computation
-static uint32_t buffer [WIDTH][bufferheight] = {0};
+static uint32_t buffer [WIDTH][2*k+1] = {0};
 // a temporary buffer that stores incoming data of the new line while the previous one is still being processed
 
 static uint32_t tempbuffer [k+1] = {0};
 
 
 //index of where to store the incoming pixel
-static uint16_t storage_index = 0;
+static int16_t storage_index = 0;
 // index of the next pixel to go to output
 static int16_t output_index = WIDTH;
 //counter that tracks when the next output frame starts
 static uint16_t line_counter = k;
 // counter that suppresses output during initialization
 static uint16_t init_counter = line_counter;
-// flag that is false during initialization
+// flag that is set to true when enough lines are available to start output
 static bool past_init = false;
 
 uint64_t channel1,channel2,channel3,channel4 = 0;
 int channel1_out,channel2_out,channel3_out,channel4_out;
 int weight = 0;
 int pixel_val = 0;
-uint16_t i = 0;
-uint16_t j = 1;
-uint16_t lowerX = 0;
-uint16_t upperX = WIDTH;
+int16_t i = 0;
+int16_t j = 1;
+int16_t lowerX = 0;
+int16_t upperX = WIDTH;
 
 pixel_data p_in;
 
@@ -69,49 +68,55 @@ else {
     buffer[storage_index][0] = p_in.data;
 }
 
-// deal with nonexistent pixels to the left of the image
-if ((lowerX = output_index-k) < 0){
-    lowerX = 0;
-}
-
-// deal with nonexistent pixels to the right of the image
-if ((upperX = output_index+k)> WIDTH-1){
-    upperX = WIDTH-1;
-}
 
 
 // if past initialization, compute the kernel
-if(past_init & (output_index<WIDTH)) {
+if(past_init && (output_index<WIDTH)) {
 	// kernel is a uniform blur (for now at least)
 	//TODO: calculate the actual median
-	//compute the weight
-	weight = (2*k+1)*(1+upperX-lowerX);
+	lowerX = output_index-k;
+	upperX = output_index+k;
 
-	//weight = 1;
+	//compute the weight
+	//weight could also be defined as 1/n instead of n,
+	//which would allow for multiplication instead of division
+	//however, then 0<n<1 which would require using float
+	weight = (2*k+1)^2;
 	//i = output_index;
-	//weight = 1/(1+upperX-lowerX);
 	for (j= 0;j<2*k+1;j++) {
-		for (i = lowerX;i<upperX;i++) {
-			 channel1 += (buffer[i][j]&0xFF000000);
-			 channel2 += (buffer[i][j]&0x00FF0000);
-			 channel3 += (buffer[i][j]&0x0000FF00);
-			 channel4 += (buffer[i][j]&0x000000FF);
+		for (i = lowerX;i<=upperX;i++) {
+			//if the pixel exists
+			if ((i>=0)&&(i<(WIDTH))) {
+				channel1 += (buffer[i][j]&0xFF000000);
+				channel2 += (buffer[i][j]&0x00FF0000);
+				channel3 += (buffer[i][j]&0x0000FF00);
+				channel4 += (buffer[i][j]&0x000000FF);
+			}
 		}
 	}
+
 	channel1_out = ((channel1)/weight)&0xFF000000;
 	channel2_out = ((channel2)/weight)&0x00FF0000;
 	channel3_out = ((channel3)/weight)&0x0000FF00;
 	channel4_out = ((channel4)/weight)&0x000000FF;
-	//p_out.data = channel1_out|(p_in.data&0x00FFFF00)|channel4_out;
-	//p_out.data = (p_in.data&0xFFFF0000)|channel3_out|(p_in.data&0x000000FF);
+/*
+	//set specific channels to pass through
+	channel1_out = buffer[output_index][k]&0xFF000000;
+	channel2_out = buffer[output_index][k]&0x00FF0000;
+	channel3_out = buffer[output_index][k]&0x0000FF00;
+	channel4_out = buffer[output_index][k]&0x000000FF;
+*/
+	//p_out.data = buffer[output_index][k];
 	p_out.data = channel1_out|channel2_out|channel3_out|channel4_out;
 
-	//p_out.data = buffer[output_index][k];
 }
 
+storage_index++;
+output_index++;
 
 // preparations for outputting new line
-if (storage_index == k-1) {
+// triggers when the last pixel of a line is put out
+if (storage_index == k) {
 		// reset pixel output index
 		output_index = 0;
 		p_out.last = 1;
@@ -136,13 +141,12 @@ if (line_counter == 0){
 	p_out.user = 0;
 }
 
-storage_index++;
-output_index++;
 if(p_in.last) {
      storage_index = 0;
      if (line_counter > 0) {
      line_counter--;
      } else if (line_counter == 0){
+    	 //triggers when k lines have come in, enough to start the output
     	 past_init = true;
      }
 }
