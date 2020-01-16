@@ -26,11 +26,7 @@ void medianblur(pixel_stream &src, pixel_stream &dst)
 int m;
 
 // buffer that stores several lines required for blur computation
-static uint32_t buffer [WIDTH][2*k+1] = {0};
-// a temporary buffer that stores incoming data of the new line while the previous one is still being processed
-
-static uint32_t tempbuffer [k+1] = {0};
-
+static uint32_t buffer [WIDTH][2*k+2] = {0};
 
 //index of where to store the incoming pixel
 static int16_t storage_index = 0;
@@ -58,14 +54,14 @@ pixel_data p_in;
 src >> p_in;
 pixel_data p_out = p_in;
 
-//store the first part of the line in a temporary buffer
+//store the first part of the line in row 0
 if (storage_index < k) {
-	tempbuffer[storage_index] = p_in.data;
+    buffer[storage_index][0] = p_in.data;
 }
 
 else {
-	// store incoming pixel
-    buffer[storage_index][0] = p_in.data;
+	// after the buffer has been shifted, store new pixels in row 1
+    buffer[storage_index][1] = p_in.data;
 }
 
 
@@ -83,7 +79,7 @@ if(past_init && (output_index<WIDTH)) {
 	//however, then 0<n<1 which would require using float
 	weight = (2*k+1)^2;
 	//i = output_index;
-	for (j= 0;j<2*k+1;j++) {
+	for (j= 1;j<2*k+2;j++) {
 		for (i = lowerX;i<=upperX;i++) {
 			//if the pixel exists
 			if ((i>=0)&&(i<(WIDTH))) {
@@ -94,18 +90,18 @@ if(past_init && (output_index<WIDTH)) {
 			}
 		}
 	}
-
+/*
 	channel1_out = ((channel1)/weight)&0xFF000000;
 	channel2_out = ((channel2)/weight)&0x00FF0000;
 	channel3_out = ((channel3)/weight)&0x0000FF00;
 	channel4_out = ((channel4)/weight)&0x000000FF;
-/*
-	//set specific channels to pass through
-	channel1_out = buffer[output_index][k]&0xFF000000;
-	channel2_out = buffer[output_index][k]&0x00FF0000;
-	channel3_out = buffer[output_index][k]&0x0000FF00;
-	channel4_out = buffer[output_index][k]&0x000000FF;
 */
+	//set specific channels to pass through
+	channel1_out = buffer[output_index][k+1]&0xFF000000;
+	channel2_out = buffer[output_index][k+1]&0x00FF0000;
+	channel3_out = buffer[output_index][k+1]&0x0000FF00;
+	channel4_out = buffer[output_index][k+1]&0x000000FF;
+
 	//p_out.data = buffer[output_index][k];
 	p_out.data = channel1_out|channel2_out|channel3_out|channel4_out;
 
@@ -113,26 +109,6 @@ if(past_init && (output_index<WIDTH)) {
 
 storage_index++;
 output_index++;
-
-// preparations for outputting new line
-// triggers when the last pixel of a line is put out
-if (storage_index == k) {
-		// reset pixel output index
-		output_index = 0;
-		p_out.last = 1;
-        for(j=1;j<2*k+1;j++) {
-            //shift the shift register
-        	for(i=0;i<WIDTH-1;i++) {
-              	  buffer[i][j] = buffer[i][j-1];
-        	}
-        	// move temporary buffer to main buffer
-        	for(i=0;i<k-1;i++) {
-                  buffer[i][0] = tempbuffer[i];
-        	}
-        }
-} else{
-	p_out.last = 0;
-}
 
 //send user signal when a new output frame starts
 if (line_counter == 0){
@@ -149,6 +125,22 @@ if(p_in.last) {
     	 //triggers when k lines have come in, enough to start the output
     	 past_init = true;
      }
+}
+
+// preparations for outputting new line
+// triggers when the last pixel of a line is put out
+if (storage_index == k) {
+		// reset pixel output index
+		output_index = 0;
+		p_out.last = 1;
+        for(j=1;j<2*k+1;j++) {
+            //shift the shift register
+        	for(i=0;i<WIDTH;i++) {
+              	  buffer[i][j] = buffer[i][j-1];
+        	}
+        }
+} else{
+	p_out.last = 0;
 }
 
 if(p_in.user) {
