@@ -9,12 +9,12 @@
 
 #define WIDTH 1280
 #define HEIGHT 720
-#define GR(v) ((v)&0xFF)
+#define GB(v) ((v)&0xFF)
 #define GG(v) (((v)&0xFF00)>>8)
-#define GB(v) (((v)&0xFF0000)>>16)
-#define SR(v) ((v)&0xFF)
+#define GR(v) (((v)&0xFF0000)>>16)
+#define SB(v) ((v)&0xFF)
 #define SG(v) (((v)&0xFF)<<8)
-#define SB(v) (((v)&0xFF)<<16)
+#define SR(v) (((v)&0xFF)<<16)
 
 // k determines the aperture size
 // this aperture is then a 2*k+1 by 2*k+1 grid
@@ -44,9 +44,9 @@ static uint16_t init_counter = line_counter;
 // flag that is set to true when enough lines are available to start output
 static bool past_init = false;
 
-int channel1,channel2,channel3;
-int channel1_out,channel2_out,channel3_out;
-int weight = 0;
+uint32_t channel1,channel2,channel3 = 0;
+uint32_t channel1_out,channel2_out,channel3_out = 0;
+uint32_t weight = 0;
 int16_t i = 0;
 int16_t j = 1;
 int16_t lowerX = 0;
@@ -77,36 +77,28 @@ if(past_init && (output_index<WIDTH)) {
 	lowerX = output_index-k;
 	upperX = output_index+k;
 
-	//compute the weight
-	//weight could also be defined as 1/n instead of n,
-	//which would allow for multiplication instead of division
-	//however, then 0<n<1 which would require using float
-	weight = (2*k+1)^2;
 	//i = output_index;
 	for (j= 1;j<2*k+2;j++) {
 		for (i = lowerX;i<=upperX;i++) {
 			//if the pixel exists
 			if ((i>=0)&&(i<(WIDTH))) {
-				channel1 += GB(buffer[i][j]);
+				channel1 += GR(buffer[i][j]);
 				channel2 += GG(buffer[i][j]);
-				channel3 += GR(buffer[i][j]);
+				channel3 += GB(buffer[i][j]);
+				weight++;
 			}
 		}
 	}
 
-	channel1_out = SB((channel1)/weight);
+	channel1_out = SR((channel1)/weight);
 	channel2_out = SG((channel2)/weight);
-	channel3_out = SR((channel3)/weight);
+	channel3_out = SB((channel3)/weight);
 /*
 	//set specific channels to pass through
-	channel1_out = buffer[output_index][k+1]&0x000000FF;
+	channel1_out = buffer[output_index][k+1]&0x00FF0000;
 	channel2_out = buffer[output_index][k+1]&0x0000FF00;
-	channel3_out = buffer[output_index][k+1]&0x00FF0000;
+	channel3_out = buffer[output_index][k+1]&0x000000FF;
 */
-	//set specific channels to be off
-	//channel1_out = 0;
-	//channel2_out = 0;
-	//channel3_out = 0;
 
 	//p_out.data = buffer[output_index][k];
 	p_out.data = channel1_out|channel2_out|channel3_out;
