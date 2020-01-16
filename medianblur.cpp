@@ -18,7 +18,7 @@
 
 // k determines the aperture size
 // this aperture is then a 2*k+1 by 2*k+1 grid
-#define k 0
+#define k 16
 
 typedef ap_axiu<32,1,1,1> pixel_data;
 typedef hls::stream<pixel_data> pixel_stream;
@@ -44,9 +44,8 @@ static uint16_t init_counter = line_counter;
 // flag that is set to true when enough lines are available to start output
 static bool past_init = false;
 
-uint32_t channel1,channel2,channel3 = 0;
+uint16_t channel1,channel2,channel3 = 0;
 uint32_t channel1_out,channel2_out,channel3_out = 0;
-uint32_t weight = 0;
 int16_t i = 0;
 int16_t j = 1;
 int16_t lowerX = 0;
@@ -84,13 +83,12 @@ if(past_init && (output_index<WIDTH)) {
 				channel1 += GR(buffer[i][j]);
 				channel2 += GG(buffer[i][j]);
 				channel3 += GB(buffer[i][j]);
-				weight++;
 			}
 		}
 	}
-	channel1_out = SR((channel1/weight));
-	channel2_out = SG((channel2/weight));
-	channel3_out = SB((channel3/weight));
+	channel1_out = SR((channel1/(2*k+1)));
+	channel2_out = SG((channel2/(2*k+1)));
+	channel3_out = SB((channel3/(2*k+1)));
 
 	//p_out.data = buffer[output_index][k];
 	p_out.data = channel1_out|channel2_out|channel3_out;
