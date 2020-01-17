@@ -33,26 +33,29 @@ void avgblur(pixel_stream &src, pixel_stream &dst,uint16_t k)
 // kmax is the maximum k enabled by the hardware
 const uint16_t kmax = 16;
 
+k = 0;
+
 if (k>kmax) {
-	k = 0;
+	k = kmax;
 }
 
-// buffer that stores several lines required for blur computation
-static uint32_t buffer [WIDTH][2*kmax+2];
+// buffer that stores the incoming pixels
+static uint32_t buffer [WIDTH][HEIGHT];
 
-//index of where to store the incoming pixel
-static int16_t storage_index = 0;
-// index of the output pixel
-static int16_t output_index = 0;
-//counter that tracks when the next output frame starts
-static uint16_t line_counter = 0;
+//index of the column to store on
+static int16_t storage_col= 0;
+// index of the output pixel column
+static int16_t output_col = 0;
+//index of the row to store on
+static int16_t storage_row = 0;
+// index of the output pixel row
+static uint16_t output_row = 0;
+
 // flag that is set to true when enough lines are available to start output
 static bool past_init = false;
-//flag that is set when the user signal comes in
-static bool user_flag;
 
 
-uint16_t channel1,channel2,channel3 = 0;
+uint32_t channel1,channel2,channel3 = 0;
 uint32_t channel1_out,channel2_out,channel3_out = 0;
 int16_t i = 0;
 int16_t j = 1;
@@ -63,36 +66,32 @@ pixel_data p_in;
 src >> p_in;
 pixel_data p_out;
 
-//store the first part of the line in row 0
-if (storage_index < k) {
-    buffer[storage_index][0] = p_in.data;
+if(p_in.user) {
+	storage_row = 0;
 }
 
-else {
-	// after the buffer has been shifted, store new pixels in row 1
-    buffer[storage_index][1] = p_in.data;
-}
+//store the data
+buffer[storage_col][storage_row] = p_in.data;
+//store the first part of the line in row 0
 
 // if past initialization, compute the kernel
 if(past_init) {
 
-	for (j= 1;j<(2*kmax+2);j++) {
+	for (j= -kmax;j<=kmax;j++) {
 		for (i = -kmax;i<=kmax;i++) {
 			//only do computation if required by the user-defined k
-			if ((j < (2*k+2))&&((i>=-k)&&(i<=k))) {
+			if (((j >=-k)&&(j<=k))&&((i>=-k)&&(i<=k))) {
 				//do boundary checks
-				int16_t ii=i+output_index;
-				int16_t jj=j;
-				//deal with nonexistent pixels to the left of the frame
+				int16_t ii=i+output_col;
+				int16_t jj=j+output_row;
+				//deal with nonexistent pixels left of the frame
 				if (ii<0)ii = 0;
-				//deal with nonexistent pixels to the right of the frame
-				if (ii>=WIDTH) ii = WIDTH;
-				//ignore the bottom part of the buffer that contains data from the previous frame
-				//instead pad numbers
-				if ((line_counter>k)&(j>line_counter)) jj = line_counter;
-				//ignore the top part of the buffer that contains data from the next frame
-				//instead pad numbers
-				if ((line_counter<=k)&(j<=line_counter)) jj = line_counter+1;
+				//deal with nonexistent pixels right of the frame
+				if (ii>=WIDTH) ii = WIDTH-1;
+				//deal with nonexistent pixels below the frame
+				if (jj>=HEIGHT) jj = HEIGHT-1;
+				//deal with nonexistent pixels above the frame
+				if (jj<0) jj = 0;
 				//add the pixel to the sum
 				channel1 += GR(buffer[ii][jj]);
 				channel2 += GG(buffer[ii][jj]);
@@ -110,47 +109,37 @@ if(past_init) {
 }
 
 //send user signal when a new output frame starts
-if ((line_counter == k+1)&&(output_index==0)){
+if ((output_row == 0)&&(output_col==0)){
 	p_out.user = 1;
 } else {
 	p_out.user = 0;
 }
 
-storage_index++;
-output_index++;
+storage_col++;
+output_col++;
 
 if(p_in.last) {
-     storage_index = 0;
+    storage_col  = 0;
+    storage_row++;
 }
 
 // preparations for outputting new line
 // triggers when the last pixel of a line is put out
-if (storage_index == k) {
+if (output_col == WIDTH) {
 		// reset pixel output index
-		output_index = 0;
+		output_col = 0;
 		p_out.last = 1;
-	     line_counter++;
-		 if (user_flag) {
-			 //if a new output frame starts
-			 line_counter = 0;
-			 user_flag = false;
+	     output_row++;
+		 if (output_row==HEIGHT) {
+			 //start a new output frame
+			 output_row = 0;
 		 }
-	     if (line_counter > k){
+	     if (output_row > k){
 	    	 //triggers when k lines have come in, enough to start the output
 	    	 past_init = true;
 	     }
-         //shift the shift register
-        for(j=1;j<(2*kmax+2);j++) {
-        	for(i=0;i<WIDTH;i++) {
-              	  buffer[i][j] = buffer[i][j-1];
-        	}
-        }
 } else{
 	p_out.last = 0;
-}
-
-if(p_in.user) {
-	user_flag = true;
 }
 
 // Write pixel to destination
