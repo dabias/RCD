@@ -33,9 +33,6 @@ void avgblur(pixel_stream &src, pixel_stream &dst,uint16_t k)
 // kmax is the maximum k enabled by the hardware
 const uint16_t kmax = 16;
 
-//input override for testing
-k = kmax;
-
 if (k>kmax) {
 	k = 0;
 }
@@ -79,17 +76,17 @@ else {
 // if past initialization, compute the kernel
 if(past_init) {
 
-	for (j= 1;j<(2*kmax+2);j++)
-		for (i = output_index-kmax;i<=output_index+kmax;i++) {
+	for (j= 1;j<(2*kmax+2);j++) {
+		for (i = -kmax;i<=kmax;i++) {
 			//only do computation if required by the user-defined k
-			if ((j < (2*k+2))&&((i>=output_index-k)&&(i<=output_index+k))) {
+			if ((j < (2*k+2))&&((i>=-k)&&(i<=k))) {
 				//do boundary checks
-				int16_t ii=i;
+				int16_t ii=i+output_index;
 				int16_t jj=j;
 				//deal with nonexistent pixels to the left of the frame
-				if (i<0)ii = 0;
+				if (ii<0)ii = 0;
 				//deal with nonexistent pixels to the right of the frame
-				if (i>=WIDTH) ii = WIDTH;
+				if (ii>=WIDTH) ii = WIDTH;
 				//ignore the bottom part of the buffer that contains data from the previous frame
 				//instead pad numbers
 				if ((line_counter>k)&(j>line_counter)) jj = line_counter;
@@ -101,6 +98,7 @@ if(past_init) {
 				channel2 += GG(buffer[ii][jj]);
 				channel3 += GB(buffer[ii][jj]);
 			}
+		}
 	}
 	//divide the sum to get the average, which is the output
 	channel1_out = SR(channel1/(2*k+1));
@@ -142,10 +140,10 @@ if (storage_index == k) {
 	    	 past_init = true;
 	     }
          //shift the shift register
-        for(j=1;j<(2*kmax+2);j++)
+        for(j=1;j<(2*kmax+2);j++) {
         	for(i=0;i<WIDTH;i++) {
               	  buffer[i][j] = buffer[i][j-1];
-
+        	}
         }
 } else{
 	p_out.last = 0;
