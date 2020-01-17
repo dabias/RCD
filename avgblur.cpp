@@ -31,9 +31,7 @@ void avgblur(pixel_stream &src, pixel_stream &dst,uint16_t k)
 // this aperture is then a 2*k+1 by 2*k+1 grid
 // this can be a user input
 // kmax is the maximum k enabled by the hardware
-const uint16_t kmax = 16;
-
-k = 0;
+const uint16_t kmax = 32;
 
 if (k>kmax) {
 	k = kmax;
@@ -45,7 +43,7 @@ static uint32_t buffer [WIDTH][HEIGHT];
 //index of the column to store on
 static int16_t storage_col= 0;
 // index of the output pixel column
-static int16_t output_col = 0;
+static int16_t output_col = WIDTH+1;
 //index of the row to store on
 static int16_t storage_row = 0;
 // index of the output pixel row
@@ -73,6 +71,16 @@ if(p_in.user) {
 //store the data
 buffer[storage_col][storage_row] = p_in.data;
 //store the first part of the line in row 0
+
+//triggers when the output of new frame should start
+if ((storage_col==k)&&(storage_row == k)){
+	output_col = 0;
+	output_row = 0;
+	 past_init = true;
+	 p_out.user = 1;
+} else {
+	p_out.user = 0;
+}
 
 // if past initialization, compute the kernel
 if(past_init) {
@@ -109,7 +117,7 @@ if(past_init) {
 }
 
 //send user signal when a new output frame starts
-if ((output_row == 0)&&(output_col==0)){
+if (((output_row == 0)&&(output_col==0))&&past_init){
 	p_out.user = 1;
 } else {
 	p_out.user = 0;
@@ -130,14 +138,6 @@ if (output_col == WIDTH) {
 		output_col = 0;
 		p_out.last = 1;
 	     output_row++;
-		 if (output_row==HEIGHT) {
-			 //start a new output frame
-			 output_row = 0;
-		 }
-	     if (output_row > k){
-	    	 //triggers when k lines have come in, enough to start the output
-	    	 past_init = true;
-	     }
 } else{
 	p_out.last = 0;
 }
