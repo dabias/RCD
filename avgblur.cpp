@@ -32,34 +32,32 @@ void avgblur(pixel_stream &src, pixel_stream &dst,uint16_t k)
 // kmax is the maximum k enabled by the hardware
 const uint16_t kmax = 16;
 
+//input override for testing
+k = 16;
+
 if (k>kmax) {
 	k = 0;
 }
 
-//input override for testing
-k = kmax;
-
 // buffer that stores several lines required for blur computation
-static uint32_t buffer [WIDTH][2*kmax+2] = {0};
+static uint32_t buffer [WIDTH][2*kmax+2];
 
 //index of where to store the incoming pixel
 static int16_t storage_index = 0;
-// index of the next pixel to go to output
+// index of the output pixel
 static int16_t output_index = 0;
 //counter that tracks when the next output frame starts
-static uint16_t line_counter = k;
-// counter that suppresses output during initialization
-static uint16_t init_counter = line_counter;
+static uint16_t line_counter = 0;
 // flag that is set to true when enough lines are available to start output
 static bool past_init = false;
+//flag that is set when the user signal comes in
+static bool user_flag;
 
 
 uint16_t channel1,channel2,channel3 = 0;
 uint32_t channel1_out,channel2_out,channel3_out = 0;
 int16_t i = 0;
 int16_t j = 1;
-int16_t lowerX = 0;
-int16_t upperX = WIDTH;
 
 pixel_data p_in;
 
@@ -79,29 +77,30 @@ else {
 
 // if past initialization, compute the kernel
 if(past_init) {
-	lowerX = output_index-k;
-	upperX = output_index+k;
 
-	for (j= 1;j<(2*k+2);j++)
-		for (i = lowerX;i<=upperX;i++) {
-			//do boundary checks
-			int16_t ii=i;
-			int16_t jj=j;
-			//deal with nonexistent pixels to the left of the frame
-			if (i<0)ii = 0;
-			//deal with nonexistent pixels to the right of the frame
-			if (i>=WIDTH) ii = WIDTH;
-			//deal with nonexistent pixels above the frame
-			//this is based on the fact that the bottom part of the buffer
-			//still contains data from the previous frame
-			if ((line_counter>k)&(j>line_counter)) jj = line_counter;
-			//deal with nonexistent pixels below the frame
-			//this is based on the fact that the top part of the buffer
-			//already contains data from the next frame
-			if ((line_counter<=k)&(j<=line_counter)) jj = line_counter+1;
-			channel1 += GR(buffer[ii][jj]);
-			channel2 += GG(buffer[ii][jj]);
-			channel3 += GB(buffer[ii][jj]);
+	for (j= 1;j<(2*kmax+2);j++)
+		for (i = output_index-kmax;i<=output_index+kmax;i++) {
+			//only do computation if required by the user-defined k
+			if ((j < (2*k+2))&&((i>=output_index-k)&&(i<=output_index+k))) {
+				//do boundary checks
+				int16_t ii=i;
+				int16_t jj=j;
+				//deal with nonexistent pixels to the left of the frame
+				if (i<0)ii = 0;
+				//deal with nonexistent pixels to the right of the frame
+				if (i>=WIDTH) ii = WIDTH;
+				//deal with nonexistent pixels above the frame
+				//this is based on the fact that the bottom part of the buffer
+				//still contains data from the previous frame
+				if ((line_counter>k)&(j>line_counter)) jj = line_counter;
+				//deal with nonexistent pixels below the frame
+				//this is based on the fact that the top part of the buffer
+				//already contains data from the next frame
+				if ((line_counter<=k)&(j<=line_counter)) jj = line_counter+1;
+				channel1 += GR(buffer[ii][jj]);
+				channel2 += GG(buffer[ii][jj]);
+				channel3 += GB(buffer[ii][jj]);
+			}
 	}
 	channel1_out = SR(channel1/(2*k+1));
 	channel2_out = SG(channel2/(2*k+1));
@@ -132,6 +131,11 @@ if (storage_index == k) {
 		output_index = 0;
 		p_out.last = 1;
 	     line_counter++;
+		 if (user_flag) {
+			 //if a new output frame starts
+			 line_counter = 0;
+			 user_flag = false;
+		 }
 	     if (line_counter > k){
 	    	 //triggers when k lines have come in, enough to start the output
 	    	 past_init = true;
@@ -147,7 +151,7 @@ if (storage_index == k) {
 }
 
 if(p_in.user) {
-	line_counter = 0;
+	user_flag = true;
 }
 
 // Write pixel to destination
