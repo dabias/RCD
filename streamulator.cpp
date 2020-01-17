@@ -9,7 +9,7 @@
 int main ()
 {
 	// Streams and data
-	ap_uint<32> pixeldata[HEIGHT][WIDTH];
+	static ap_uint<32> pixeldata[HEIGHT][WIDTH];
 	hls::stream<pixel_data> inputStream;
 	hls::stream<pixel_data> outputStream;
 	pixel_data streamIn;

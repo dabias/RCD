@@ -24,6 +24,7 @@ void avgblur(pixel_stream &src, pixel_stream &dst,uint16_t k)
 #pragma HLS INTERFACE ap_ctrl_none port=return
 #pragma HLS INTERFACE axis port=&src
 #pragma HLS INTERFACE axis port=&dst
+#pragma HLS INTERFACE s_axilite port=k
 #pragma HLS PIPELINE II=1
 
 // input k determines the aperture size
@@ -33,7 +34,7 @@ void avgblur(pixel_stream &src, pixel_stream &dst,uint16_t k)
 const uint16_t kmax = 16;
 
 //input override for testing
-k = 16;
+k = kmax;
 
 if (k>kmax) {
 	k = 0;
@@ -89,19 +90,19 @@ if(past_init) {
 				if (i<0)ii = 0;
 				//deal with nonexistent pixels to the right of the frame
 				if (i>=WIDTH) ii = WIDTH;
-				//deal with nonexistent pixels above the frame
-				//this is based on the fact that the bottom part of the buffer
-				//still contains data from the previous frame
+				//ignore the bottom part of the buffer that contains data from the previous frame
+				//instead pad numbers
 				if ((line_counter>k)&(j>line_counter)) jj = line_counter;
-				//deal with nonexistent pixels below the frame
-				//this is based on the fact that the top part of the buffer
-				//already contains data from the next frame
+				//ignore the top part of the buffer that contains data from the next frame
+				//instead pad numbers
 				if ((line_counter<=k)&(j<=line_counter)) jj = line_counter+1;
+				//add the pixel to the sum
 				channel1 += GR(buffer[ii][jj]);
 				channel2 += GG(buffer[ii][jj]);
 				channel3 += GB(buffer[ii][jj]);
 			}
 	}
+	//divide the sum to get the average, which is the output
 	channel1_out = SR(channel1/(2*k+1));
 	channel2_out = SG(channel2/(2*k+1));
 	channel3_out = SB(channel3/(2*k+1));
@@ -140,8 +141,8 @@ if (storage_index == k) {
 	    	 //triggers when k lines have come in, enough to start the output
 	    	 past_init = true;
 	     }
-        for(j=1;j<(2*k+2);j++)
-            //shift the shift register
+         //shift the shift register
+        for(j=1;j<(2*kmax+2);j++)
         	for(i=0;i<WIDTH;i++) {
               	  buffer[i][j] = buffer[i][j-1];
 
