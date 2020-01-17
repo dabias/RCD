@@ -43,7 +43,7 @@ static uint32_t buffer [WIDTH][HEIGHT];
 //index of the column to store on
 static int16_t storage_col= 0;
 // index of the output pixel column
-static int16_t output_col = WIDTH+1;
+static int16_t output_col = 0;
 //index of the row to store on
 static int16_t storage_row = 0;
 // index of the output pixel row
