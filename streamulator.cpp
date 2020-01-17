@@ -24,52 +24,60 @@ int main ()
 
 
 	// Write input data
-	for (int rows=0; rows < HEIGHT; rows++)
-		for (int cols=0; cols < WIDTH; cols++)
-		{
-			streamIn.data = sourceImg.at<int>(rows,cols);
-			streamIn.user = (rows==0 && cols==0) ? 1 : 0;
-			streamIn.last = (cols==WIDTH-1) ? 1 : 0;
+	for (int i=0;i<2;i++){
+		for (int rows=0; rows < HEIGHT; rows++)
+			for (int cols=0; cols < WIDTH; cols++)
+			{
+				streamIn.data = sourceImg.at<int>(rows,cols);
+				streamIn.user = (rows==0 && cols==0) ? 1 : 0;
+				streamIn.last = (cols==WIDTH-1) ? 1 : 0;
 
-			inputStream << streamIn;
-		}
+				inputStream << streamIn;
+			}
+	}
 
 	// Call stream processing function
 	while (!inputStream.empty())
 		avgblur(inputStream, outputStream,k); // Add extra arguments here
 
 	//read the output
-	int rows = 0;
 	// Wait for user signal
 	outputStream.read(streamOut);
 		while(!streamOut.user) {
-			if (streamOut.last) {
-				rows++;
-			}
 			outputStream.read(streamOut);
 		}
 	// counter used for determining on which row to store the pixels
-	int rowsindex = 0;
 	// moving to next row is controlled by last signal from stream
-	while(rows < HEIGHT) {
+	bool flag = false;
+	int rows = 0;
+	while(!outputStream.empty()) {
+		if (streamOut.user) {
+			int rows = 0;
+			if (flag) {
+				// if one frame has been completed, write it to disk
+				cv::Mat imgCvOut(cv::Size(WIDTH, HEIGHT), CV_8UC4, pixeldata);
+				cv::imwrite(OUTPUT1_IMG, imgCvOut);
+			}
+			flag  = true;
+		}
 		int cols = 0;
 		while (!streamOut.last) {
-			pixeldata[rowsindex][cols] = streamOut.data;
-			cols++;
+			pixeldata[rows][cols] = streamOut.data;
 			outputStream.read(streamOut);
+			cols++;
+			if (outputStream.empty()) break;
 		}
 		//process the final pixel of the row
-		pixeldata[rowsindex][cols] = streamOut.data;
+		pixeldata[rows][cols] = streamOut.data;
+		if (!outputStream.empty()) outputStream.read(streamOut);
 		rows++;
-		rowsindex++;
-		outputStream.read(streamOut);
 	}
 
 
 	// Save image by converting data array to matrix
 	// Depth or precision: CV_8UC4: 8 bit unsigned chars x 4 channels = 32 bit per pixel;
 	cv::Mat imgCvOut(cv::Size(WIDTH, HEIGHT), CV_8UC4, pixeldata);
-	cv::imwrite(OUTPUT_IMG, imgCvOut);
+	cv::imwrite(OUTPUT1_IMG, imgCvOut);
 
 
 	return 0;

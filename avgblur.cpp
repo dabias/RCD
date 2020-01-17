@@ -30,7 +30,7 @@ void avgblur(pixel_stream &src, pixel_stream &dst,uint16_t k)
 // this aperture is then a 2*k+1 by 2*k+1 grid
 // this can be a user input
 // kmax is the maximum k enabled by the hardware
-const uint16_t kmax = 16;
+const uint16_t kmax = 0;
 
 if (k>kmax) {
 	k = 0;
