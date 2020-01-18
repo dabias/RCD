@@ -31,8 +31,8 @@ void avgblur(pixel_stream &src, pixel_stream &dst, uint16_t k);
 
 
 // Streamulator image paths
-#define INPUT_IMG  "/home/douwe/Documents/RCD/parrot.jpg"
-#define OUTPUT_IMG "/home/douwe/Documents/RCD/output.jpg"
+#define INPUT_IMG  "D:\\Users\\Douwe\\Documents\\Vivado_RCD\\RCD\\RCD\\parrot.jpg"
+#define OUTPUT_IMG "D:\\Users\\Douwe\\Documents\\Vivado_RCD\\RCD\\RCD\\output.jpg"
 
 
 #endif // INC_H
