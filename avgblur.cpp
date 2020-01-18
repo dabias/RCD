@@ -31,7 +31,7 @@ void avgblur(pixel_stream &src, pixel_stream &dst,uint16_t k)
 // this aperture is then a 2*k+1 by 2*k+1 grid
 // this can be a user input
 // kmax is the maximum k enabled by the hardware
-const uint16_t kmax = 16;
+const uint16_t kmax = 3;
 
 if (k>kmax) {
 	k = 0;
@@ -39,6 +39,7 @@ if (k>kmax) {
 
 // buffer that stores several lines required for blur computation
 static uint32_t buffer [WIDTH][2*kmax+2];
+uint32_t newbuffer [WIDTH][2*kmax+2];
 
 //index of where to store the incoming pixel
 static int16_t storage_index = 0;
@@ -142,9 +143,13 @@ if (storage_index == k) {
          //shift the shift register
         for(j=1;j<(2*kmax+2);j++) {
         	for(i=0;i<WIDTH;i++) {
-              	  buffer[i][j] = buffer[i][j-1];
+              	  newbuffer[i][j] = buffer[i][j-1];
         	}
+        } for(i=0;i<WIDTH;i++) {
+        	newbuffer [i][0] = 0;
         }
+        //doesn't synthesize, maybe use an ap_shift_reg?
+        memcpy(&buffer, &newbuffer, WIDTH*(2*kmax+2)*4);
 } else{
 	p_out.last = 0;
 }
