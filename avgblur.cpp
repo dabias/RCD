@@ -31,7 +31,7 @@ void avgblur(pixel_stream &src, pixel_stream &dst,uint16_t k)
 // this aperture is then a 2*k+1 by 2*k+1 grid
 // this can be a user input
 // kmax is the maximum k enabled by the hardware
-const uint16_t kmax = 3;
+const uint16_t kmax = 4;
 
 if (k>kmax) {
 	k = 0;
@@ -39,18 +39,21 @@ if (k>kmax) {
 
 // buffer that stores several lines required for blur computation
 static uint32_t buffer [WIDTH][2*kmax+2];
-uint32_t newbuffer [WIDTH][2*kmax+2];
+//virtual buffer that maps storage to computation
+uint32_t virtual_buffer [WIDTH][2*kmax+2];
 
-//index of where to store the incoming pixel
-static int16_t storage_index = 0;
-// index of the output pixel
-static int16_t output_index = 0;
-//counter that tracks when the next output frame starts
-static uint16_t line_counter = 0;
+//column to store the incoming pixel
+static int16_t storage_col = 0;
+//row offset for storing the incoming pixel
+static int16_t storage_row = 2*k+1;
+// column of the output pixel
+static int16_t output_col = k;
+//row of the output pixel
+static uint16_t output_row = 0;
+//offset used in buffer mapping
+static uint16_t output_row_offset = 0;
 // flag that is set to true when enough lines are available to start output
 static bool past_init = false;
-//flag that is set when the user signal comes in
-static bool user_flag;
 
 
 uint16_t channel1,channel2,channel3 = 0;
@@ -64,40 +67,49 @@ pixel_data p_in;
 src >> p_in;
 pixel_data p_out;
 
-//store the first part of the line in row 0
-if (storage_index < k) {
-    buffer[storage_index][0] = p_in.data;
-}
+//store the data
+    buffer[storage_col][storage_row] = p_in.data;
 
-else {
-	// after the buffer has been shifted, store new pixels in row 1
-    buffer[storage_index][1] = p_in.data;
-}
 
-// if past initialization, compute the kernel
+    //send user signal when a new output frame starts
+    if ((output_row == 0)&&(output_col==0)){
+    	p_out.user = 1;
+    } else {
+    	p_out.user = 0;
+    }
+
+//map buffer to virtual buffer
+    for (j=0;j<(2*kmax+2);j++) {
+    	for (i=0;i<WIDTH;i++) {
+    		virtual_buffer[i][(j+output_row_offset)%(2*k+1)] = buffer[i][j];
+    	}
+    }
+
+//compute the kernel
 if(past_init) {
-
 	for (j= 1;j<(2*kmax+2);j++) {
 		for (i = -kmax;i<=kmax;i++) {
 			//only do computation if required by the user-defined k
 			if ((j < (2*k+2))&&((i>=-k)&&(i<=k))) {
 				//do boundary checks
-				int16_t ii=i+output_index;
+				int16_t ii=i+output_col;
 				int16_t jj=j;
 				//deal with nonexistent pixels to the left of the frame
 				if (ii<0)ii = 0;
 				//deal with nonexistent pixels to the right of the frame
 				if (ii>=WIDTH) ii = WIDTH;
+				/*
 				//ignore the bottom part of the buffer that contains data from the previous frame
 				//instead pad numbers
-				if ((line_counter>k)&(j>line_counter)) jj = line_counter;
+				if ((output_row>k)&(jj>output_row)) jj = output_row;
 				//ignore the top part of the buffer that contains data from the next frame
 				//instead pad numbers
-				if ((line_counter<=k)&(j<=line_counter)) jj = line_counter+1;
+				if ((output_row)&(j<=output_row)) jj = output_row+1;
+				*/
 				//add the pixel to the sum
-				channel1 += GR(buffer[ii][jj]);
-				channel2 += GG(buffer[ii][jj]);
-				channel3 += GB(buffer[ii][jj]);
+				channel1 += GR(virtual_buffer[ii][jj]);
+				channel2 += GG(virtual_buffer[ii][jj]);
+				channel3 += GB(virtual_buffer[ii][jj]);
 			}
 		}
 	}
@@ -110,52 +122,42 @@ if(past_init) {
 
 }
 
-//send user signal when a new output frame starts
-if ((line_counter == k+1)&&(output_index==0)){
-	p_out.user = 1;
-} else {
-	p_out.user = 0;
-}
+storage_col++;
+output_col++;
 
-storage_index++;
-output_index++;
-
-if(p_in.last) {
-     storage_index = 0;
-}
 
 // preparations for outputting new line
 // triggers when the last pixel of a line is put out
-if (storage_index == k) {
-		// reset pixel output index
-		output_index = 0;
-		p_out.last = 1;
-	     line_counter++;
-		 if (user_flag) {
-			 //if a new output frame starts
-			 line_counter = 0;
-			 user_flag = false;
+if (output_col == WIDTH) {
+	p_out.last = 1;
+		// reset pixel output column
+		output_col = 0;
+	     output_row++;
+	     output_row_offset++;
+		 if (output_row==HEIGHT) {
+			 //trigger a new output frame
+			 output_row = 0;
 		 }
-	     if (line_counter > k){
+	     if(output_row_offset>(2*k+1)){
+	    	 output_row_offset=0;
+	     }
+	     if ((storage_row == k+1) && past_init==false){
 	    	 //triggers when k lines have come in, enough to start the output
 	    	 past_init = true;
+			 output_row = 0;
+			 output_row_offset=k+1;
 	     }
-         //shift the shift register
-        for(j=1;j<(2*kmax+2);j++) {
-        	for(i=0;i<WIDTH;i++) {
-              	  newbuffer[i][j] = buffer[i][j-1];
-        	}
-        } for(i=0;i<WIDTH;i++) {
-        	newbuffer [i][0] = 0;
-        }
-        //doesn't synthesize, maybe use an ap_shift_reg?
-        memcpy(&buffer, &newbuffer, WIDTH*(2*kmax+2)*4);
 } else{
 	p_out.last = 0;
 }
 
-if(p_in.user) {
-	user_flag = true;
+
+if(p_in.last) {
+     storage_col = 0;
+     storage_row--;
+     if(storage_row<0){
+    	 storage_row=2*k+1;
+     }
 }
 
 // Write pixel to destination
