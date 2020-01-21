@@ -31,16 +31,16 @@ void avgblur(pixel_stream &src, pixel_stream &dst,uint16_t k)
 // this aperture is then a 2*k+1 by 2*k+1 grid
 // this can be a user input
 // kmax is the maximum k enabled by the hardware
-const uint16_t kmax = 4;
+const uint16_t kmax = 5;
 
 if (k>kmax) {
-	k = 0;
+	k = kmax;
 }
 
 // buffer that stores several lines required for blur computation
 static uint32_t buffer [WIDTH][2*kmax+2];
 //virtual buffer that maps storage to computation
-uint32_t virtual_buffer [WIDTH][2*kmax+2];
+uint32_t virtual_buffer [2*kmax+1][2*kmax+2];
 
 //column to store the incoming pixel
 static int16_t storage_col = 0;
@@ -56,7 +56,7 @@ static uint16_t output_row_offset = 0;
 static bool past_init = false;
 
 
-uint16_t channel1,channel2,channel3 = 0;
+uint64_t channel1,channel2,channel3 = 0;
 uint32_t channel1_out,channel2_out,channel3_out = 0;
 int16_t i = 0;
 int16_t j = 1;
@@ -114,9 +114,9 @@ if(past_init) {
 		}
 	}
 	//divide the sum to get the average, which is the output
-	channel1_out = SR(channel1/(2*k+1));
-	channel2_out = SG(channel2/(2*k+1));
-	channel3_out = SB(channel3/(2*k+1));
+	channel1_out = SR(channel1/(2*k+1)^2);
+	channel2_out = SG(channel2/(2*k+1)^2);
+	channel3_out = SB(channel3/(2*k+1)^2);
 
 	p_out.data = channel1_out|channel2_out|channel3_out;
 
