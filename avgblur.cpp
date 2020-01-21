@@ -31,7 +31,7 @@ void avgblur(pixel_stream &src, pixel_stream &dst,uint16_t k)
 // this aperture is then a 2*k+1 by 2*k+1 grid
 // this can be a user input
 // kmax is the maximum k enabled by the hardware
-const uint16_t kmax = 5;
+const uint16_t kmax = 25;
 
 if (k>kmax) {
 	k = kmax;
@@ -39,15 +39,17 @@ if (k>kmax) {
 
 // buffer that stores several lines required for blur computation
 static uint32_t buffer [WIDTH][2*kmax+2];
+//buffers that stores the averages of the vertical dimension, per color channel
+static uint32_t channel1buffer [WIDTH],channel2buffer [WIDTH],channel3buffer [WIDTH];
 //virtual buffer that maps storage to computation
-uint32_t virtual_buffer [2*kmax+1][2*kmax+2];
+uint32_t virtual_buffer [2*kmax+2];
 
 //column to store the incoming pixel
-static int16_t storage_col = 0;
+static uint16_t storage_col = 0;
 //row offset for storing the incoming pixel
 static int16_t storage_row = 2*k+1;
 // column of the output pixel
-static int16_t output_col = k;
+static int16_t output_col = 0;
 //row of the output pixel
 static uint16_t output_row = 0;
 //offset used in buffer mapping
@@ -56,7 +58,7 @@ static uint16_t output_row_offset = 0;
 static bool past_init = false;
 
 
-uint64_t channel1,channel2,channel3 = 0;
+uint32_t channel1,channel2,channel3 = 0;
 uint32_t channel1_out,channel2_out,channel3_out = 0;
 int16_t i = 0;
 int16_t j = 1;
@@ -68,55 +70,51 @@ src >> p_in;
 pixel_data p_out;
 
 //store the data
-    buffer[storage_col][storage_row] = p_in.data;
+buffer[storage_col][storage_row] = p_in.data;
 
-
-    //send user signal when a new output frame starts
-    if ((output_row == 0)&&(output_col==0)){
-    	p_out.user = 1;
-    } else {
-    	p_out.user = 0;
-    }
+ //send user signal when a new output frame starts
+if ((output_row == 0)&&(output_col==0)){
+	p_out.user = 1;
+} else {
+    p_out.user = 0;
+}
 
 //map buffer to virtual buffer
-    for (j=0;j<(2*kmax+2);j++) {
-		for (i = -kmax;i<=kmax;i++) {
-			int16_t ii=i+output_col;
-			//deal with nonexistent pixels to the left of the frame
-			if (ii<0) ii = 0;
-			//deal with nonexistent pixels to the right of the frame
-			if (ii>=WIDTH) ii = WIDTH;
-    		virtual_buffer[i+kmax][(j+output_row_offset)%(2*k+1)] = buffer[ii][j];
-    	}
-    }
+for (j=0;j<(2*kmax+2);j++) {
+    virtual_buffer[(j+output_row_offset)%(2*k+1)] = buffer[storage_col][j];
+}
 
-//compute the kernel
-if(past_init) {
-	for (j= 1;j<(2*kmax+2);j++) {
-		for (i = 0;i<=2*kmax;i++) {
-			//only do computation if required by the user-defined k
-			if ((j < (2*k+2))&&((i>=-k)&&(i<=k))) {
-				//do boundary checks
-				int16_t jj=j;
-				/*
-				//ignore the bottom part of the buffer that contains data from the previous frame
-				//instead pad numbers
-				if ((output_row>k)&(jj>output_row)) jj = output_row;
-				//ignore the top part of the buffer that contains data from the next frame
-				//instead pad numbers
-				if ((output_row)&(j<=output_row)) jj = output_row+1;
-				*/
-				//add the pixel to the sum
-				channel1 += GR(virtual_buffer[i][jj]);
-				channel2 += GG(virtual_buffer[i][jj]);
-				channel3 += GB(virtual_buffer[i][jj]);
-			}
-		}
+channel1buffer[storage_col] = 0;
+channel2buffer[storage_col] = 0;
+channel3buffer[storage_col] = 0;
+
+//compute the kernel in the vertical axis and store it
+for (j= -kmax;j<=(kmax);j++) {
+	if ((j>=-k)&&(j<=k)) {
+		uint16_t jj = j+kmax+1;
+		channel1buffer[storage_col] += GR(virtual_buffer[jj]);
+		channel2buffer[storage_col] += GG(virtual_buffer[jj]);
+		channel3buffer[storage_col] += GB(virtual_buffer[jj]);
+	}
+}
+channel1buffer[storage_col] = channel1buffer[storage_col]/(2*k+1);
+channel2buffer[storage_col] = channel2buffer[storage_col]/(2*k+1);
+channel3buffer[storage_col] = channel3buffer[storage_col]/(2*k+1);
+
+//compute the kernel in the horizontal axis and output it
+for (i = -kmax;i<=kmax;i++) {
+	if ((i>=-k)&&(i<=k)) {
+		uint16_t ii = i+output_col;
+		if (ii<0) ii = 0;
+		if (ii>WIDTH-1) ii = WIDTH-1;
+		channel1 += GR(channel1buffer[ii]);
+		channel2 += GG(channel1buffer[ii]);
+		channel3 += GB(channel1buffer[ii]);
 	}
 	//divide the sum to get the average, which is the output
-	channel1_out = SR(channel1/(2*k+1)^2);
-	channel2_out = SG(channel2/(2*k+1)^2);
-	channel3_out = SB(channel3/(2*k+1)^2);
+	channel1_out = SR(channel1/(2*k+1));
+	channel2_out = SG(channel2/(2*k+1));
+	channel3_out = SB(channel3/(2*k+1));
 
 	p_out.data = channel1_out|channel2_out|channel3_out;
 
