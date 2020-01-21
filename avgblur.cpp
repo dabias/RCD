@@ -80,24 +80,24 @@ pixel_data p_out;
 
 //map buffer to virtual buffer
     for (j=0;j<(2*kmax+2);j++) {
-    	for (i=0;i<WIDTH;i++) {
-    		virtual_buffer[i][(j+output_row_offset)%(2*k+1)] = buffer[i][j];
+		for (i = -kmax;i<=kmax;i++) {
+			int16_t ii=i+output_col;
+			//deal with nonexistent pixels to the left of the frame
+			if (ii<0) ii = 0;
+			//deal with nonexistent pixels to the right of the frame
+			if (ii>=WIDTH) ii = WIDTH;
+    		virtual_buffer[i+kmax][(j+output_row_offset)%(2*k+1)] = buffer[ii][j];
     	}
     }
 
 //compute the kernel
 if(past_init) {
 	for (j= 1;j<(2*kmax+2);j++) {
-		for (i = -kmax;i<=kmax;i++) {
+		for (i = 0;i<=2*kmax;i++) {
 			//only do computation if required by the user-defined k
 			if ((j < (2*k+2))&&((i>=-k)&&(i<=k))) {
 				//do boundary checks
-				int16_t ii=i+output_col;
 				int16_t jj=j;
-				//deal with nonexistent pixels to the left of the frame
-				if (ii<0)ii = 0;
-				//deal with nonexistent pixels to the right of the frame
-				if (ii>=WIDTH) ii = WIDTH;
 				/*
 				//ignore the bottom part of the buffer that contains data from the previous frame
 				//instead pad numbers
@@ -107,9 +107,9 @@ if(past_init) {
 				if ((output_row)&(j<=output_row)) jj = output_row+1;
 				*/
 				//add the pixel to the sum
-				channel1 += GR(virtual_buffer[ii][jj]);
-				channel2 += GG(virtual_buffer[ii][jj]);
-				channel3 += GB(virtual_buffer[ii][jj]);
+				channel1 += GR(virtual_buffer[i][jj]);
+				channel2 += GG(virtual_buffer[i][jj]);
+				channel3 += GB(virtual_buffer[i][jj]);
 			}
 		}
 	}
