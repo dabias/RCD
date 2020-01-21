@@ -31,7 +31,7 @@ void avgblur(pixel_stream &src, pixel_stream &dst,uint16_t k)
 // this aperture is then a 2*k+1 by 2*k+1 grid
 // this can be a user input
 // kmax is the maximum k enabled by the hardware
-const uint16_t kmax = 25;
+const uint16_t kmax = 7;
 
 if (k>kmax) {
 	k = kmax;
@@ -54,14 +54,12 @@ static int16_t output_col = 0;
 static uint16_t output_row = 0;
 //offset used in buffer mapping
 static uint16_t output_row_offset = 0;
-// flag that is set to true when enough lines are available to start output
-static bool past_init = false;
 
 
 uint32_t channel1,channel2,channel3 = 0;
 uint32_t channel1_out,channel2_out,channel3_out = 0;
-int16_t i = 0;
-int16_t j = 1;
+int16_t i;
+int16_t j;
 
 pixel_data p_in;
 
@@ -81,7 +79,7 @@ if ((output_row == 0)&&(output_col==0)){
 
 //map buffer to virtual buffer
 for (j=0;j<(2*kmax+2);j++) {
-    virtual_buffer[(j+output_row_offset)%(2*k+1)] = buffer[storage_col][j];
+    virtual_buffer[(j+output_row_offset)%(2*kmax+1)] = buffer[storage_col][j];
 }
 
 channel1buffer[storage_col] = 0;
@@ -91,7 +89,7 @@ channel3buffer[storage_col] = 0;
 //compute the kernel in the vertical axis and store it
 for (j= -kmax;j<=(kmax);j++) {
 	if ((j>=-k)&&(j<=k)) {
-		uint16_t jj = j+kmax+1;
+		int16_t jj = j+kmax+1;
 		channel1buffer[storage_col] += GR(virtual_buffer[jj]);
 		channel2buffer[storage_col] += GG(virtual_buffer[jj]);
 		channel3buffer[storage_col] += GB(virtual_buffer[jj]);
@@ -104,12 +102,12 @@ channel3buffer[storage_col] = channel3buffer[storage_col]/(2*k+1);
 //compute the kernel in the horizontal axis and output it
 for (i = -kmax;i<=kmax;i++) {
 	if ((i>=-k)&&(i<=k)) {
-		uint16_t ii = i+output_col;
+		int16_t ii = i+output_col;
 		if (ii<0) ii = 0;
 		if (ii>WIDTH-1) ii = WIDTH-1;
-		channel1 += GR(channel1buffer[ii]);
-		channel2 += GG(channel1buffer[ii]);
-		channel3 += GB(channel1buffer[ii]);
+		channel1 += channel1buffer[ii];
+		channel2 += channel2buffer[ii];
+		channel3 += channel3buffer[ii];
 	}
 	//divide the sum to get the average, which is the output
 	channel1_out = SR(channel1/(2*k+1));
@@ -117,7 +115,6 @@ for (i = -kmax;i<=kmax;i++) {
 	channel3_out = SB(channel3/(2*k+1));
 
 	p_out.data = channel1_out|channel2_out|channel3_out;
-
 }
 
 storage_col++;
@@ -139,9 +136,8 @@ if (output_col == WIDTH) {
 	     if(output_row_offset>(2*k+1)){
 	    	 output_row_offset=0;
 	     }
-	     if ((storage_row == k+1) && past_init==false){
+	     if (storage_row == k+1){
 	    	 //triggers when k lines have come in, enough to start the output
-	    	 past_init = true;
 			 output_row = 0;
 			 output_row_offset=k+1;
 	     }
