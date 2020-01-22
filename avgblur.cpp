@@ -32,10 +32,7 @@ void avgblur(pixel_stream &src, pixel_stream &dst,uint16_t x, uint16_t y)
 // this aperture is then a 2*x+1 by 2*y+1 grid
 // this can be a user input
 // kmax is the maximum x and y enabled by the hardware
-const uint16_t kmax = 12;
-
-x = kmax;
-y= kmax;
+const uint16_t kmax = 16;
 
 if (x>kmax) {
 	x = kmax;
@@ -54,7 +51,7 @@ uint32_t virtual_buffer [2*kmax+2];
 //column to store the incoming pixel
 static uint16_t storage_col = 0;
 //row offset for storing the incoming pixel
-static int16_t storage_row = 2*y+1;
+static int16_t storage_row = 2*kmax+1;
 // column of the output pixel
 static int16_t output_col = 0;
 //row of the output pixel
@@ -140,13 +137,13 @@ if (output_col == WIDTH) {
 			 //trigger a new output frame
 			 output_row = 0;
 		 }
-	     if(output_row_offset>(2*y+1)){
+	     if(output_row_offset>(2*kmax+1)){
 	    	 output_row_offset=0;
 	     }
-	     if (storage_row == y+1){
+	     if (storage_row == kmax+1){
 	    	 //triggers when k lines have come in, enough to start the output
 			 output_row = 0;
-			 output_row_offset=y+1;
+			 output_row_offset=kmax+1;
 	     }
 } else{
 	p_out.last = 0;
@@ -157,7 +154,7 @@ if(p_in.last) {
      storage_col = 0;
      storage_row--;
      if(storage_row<0){
-    	 storage_row=2*y+1;
+    	 storage_row=2*kmax+1;
      }
 }
 
