@@ -34,6 +34,9 @@ void avgblur(pixel_stream &src, pixel_stream &dst,uint16_t x, uint16_t y)
 // kmax is the maximum x and y enabled by the hardware
 const uint16_t kmax = 16;
 
+y=5;
+x=16;
+
 if (x>kmax) {
 	x = kmax;
 }
@@ -55,7 +58,7 @@ static int16_t storage_row = 2*kmax+1;
 // column of the output pixel
 static int16_t output_col = 0;
 //row of the output pixel
-static uint16_t output_row = 0;
+static uint16_t output_row = WIDTH+1;
 //offset used in buffer mapping
 static uint16_t output_row_offset = 0;
 
@@ -140,10 +143,9 @@ if (output_col == WIDTH) {
 	     if(output_row_offset>(2*kmax+1)){
 	    	 output_row_offset=0;
 	     }
-	     if (storage_row == kmax+1){
-	    	 //triggers when k lines have come in, enough to start the output
+	     if (storage_row == y+1){
+	    	 //triggers when y lines have come in, enough to start the output
 			 output_row = 0;
-			 output_row_offset=kmax+1;
 	     }
 } else{
 	p_out.last = 0;
