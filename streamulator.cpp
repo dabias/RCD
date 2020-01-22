@@ -14,7 +14,8 @@ int main ()
 	hls::stream<pixel_data> outputStream;
 	pixel_data streamIn;
 	pixel_data streamOut;
-	uint32_t k = 16;
+	uint32_t x = 16;
+	uint32_t y = 16;
 
 	// Read input image
 	cv::Mat sourceImg = cv::imread(INPUT_IMG);
@@ -36,7 +37,7 @@ int main ()
 
 	// Call stream processing function
 	while (!inputStream.empty())
-		avgblur(inputStream, outputStream,k); // Add extra arguments here
+		avgblur(inputStream, outputStream,x,y); // Add extra arguments here
 
 	//read the output
 	int rows = 0;

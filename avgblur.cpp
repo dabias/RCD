@@ -19,22 +19,29 @@
 typedef ap_axiu<32,1,1,1> pixel_data;
 typedef hls::stream<pixel_data> pixel_stream;
 
-void avgblur(pixel_stream &src, pixel_stream &dst,uint16_t k)
+void avgblur(pixel_stream &src, pixel_stream &dst,uint16_t x, uint16_t y)
 {
 #pragma HLS INTERFACE ap_ctrl_none port=return
 #pragma HLS INTERFACE axis port=&src
 #pragma HLS INTERFACE axis port=&dst
-#pragma HLS INTERFACE s_axilite port=k
+#pragma HLS INTERFACE s_axilite port=x
+#pragma HLS INTERFACE s_axilite port=y
 #pragma HLS PIPELINE II=1
 
-// input k determines the aperture size
-// this aperture is then a 2*k+1 by 2*k+1 grid
+// input x and y determines the aperture size
+// this aperture is then a 2*x+1 by 2*y+1 grid
 // this can be a user input
-// kmax is the maximum k enabled by the hardware
-const uint16_t kmax = 7;
+// kmax is the maximum x and y enabled by the hardware
+const uint16_t kmax = 12;
 
-if (k>kmax) {
-	k = kmax;
+x = kmax;
+y= kmax;
+
+if (x>kmax) {
+	x = kmax;
+}
+if (y>kmax) {
+	y = kmax;
 }
 
 // buffer that stores several lines required for blur computation
@@ -47,7 +54,7 @@ uint32_t virtual_buffer [2*kmax+2];
 //column to store the incoming pixel
 static uint16_t storage_col = 0;
 //row offset for storing the incoming pixel
-static int16_t storage_row = 2*k+1;
+static int16_t storage_row = 2*y+1;
 // column of the output pixel
 static int16_t output_col = 0;
 //row of the output pixel
@@ -88,20 +95,20 @@ channel3buffer[storage_col] = 0;
 
 //compute the kernel in the vertical axis and store it
 for (j= -kmax;j<=(kmax);j++) {
-	if ((j>=-k)&&(j<=k)) {
+	if ((j>=-y)&&(j<=y)) {
 		int16_t jj = j+kmax+1;
 		channel1buffer[storage_col] += GR(virtual_buffer[jj]);
 		channel2buffer[storage_col] += GG(virtual_buffer[jj]);
 		channel3buffer[storage_col] += GB(virtual_buffer[jj]);
 	}
 }
-channel1buffer[storage_col] = channel1buffer[storage_col]/(2*k+1);
-channel2buffer[storage_col] = channel2buffer[storage_col]/(2*k+1);
-channel3buffer[storage_col] = channel3buffer[storage_col]/(2*k+1);
+channel1buffer[storage_col] = channel1buffer[storage_col]/(2*y+1);
+channel2buffer[storage_col] = channel2buffer[storage_col]/(2*y+1);
+channel3buffer[storage_col] = channel3buffer[storage_col]/(2*y+1);
 
 //compute the kernel in the horizontal axis and output it
 for (i = -kmax;i<=kmax;i++) {
-	if ((i>=-k)&&(i<=k)) {
+	if ((i>=-x)&&(i<=x)) {
 		int16_t ii = i+output_col;
 		if (ii<0) ii = 0;
 		if (ii>WIDTH-1) ii = WIDTH-1;
@@ -110,9 +117,9 @@ for (i = -kmax;i<=kmax;i++) {
 		channel3 += channel3buffer[ii];
 	}
 	//divide the sum to get the average, which is the output
-	channel1_out = SR(channel1/(2*k+1));
-	channel2_out = SG(channel2/(2*k+1));
-	channel3_out = SB(channel3/(2*k+1));
+	channel1_out = SR(channel1/(2*x+1));
+	channel2_out = SG(channel2/(2*x+1));
+	channel3_out = SB(channel3/(2*x+1));
 
 	p_out.data = channel1_out|channel2_out|channel3_out;
 }
@@ -133,13 +140,13 @@ if (output_col == WIDTH) {
 			 //trigger a new output frame
 			 output_row = 0;
 		 }
-	     if(output_row_offset>(2*k+1)){
+	     if(output_row_offset>(2*y+1)){
 	    	 output_row_offset=0;
 	     }
-	     if (storage_row == k+1){
+	     if (storage_row == y+1){
 	    	 //triggers when k lines have come in, enough to start the output
 			 output_row = 0;
-			 output_row_offset=k+1;
+			 output_row_offset=y+1;
 	     }
 } else{
 	p_out.last = 0;
@@ -150,7 +157,7 @@ if(p_in.last) {
      storage_col = 0;
      storage_row--;
      if(storage_row<0){
-    	 storage_row=2*k+1;
+    	 storage_row=2*y+1;
      }
 }
 
