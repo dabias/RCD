@@ -32,10 +32,10 @@ void avgblur(pixel_stream &src, pixel_stream &dst,uint16_t x, uint16_t y)
 // this aperture is then a 2*x+1 by 2*y+1 grid
 // this can be a user input
 // kmax is the maximum x and y enabled by the hardware
-const uint16_t kmax = 16;
+const uint16_t kmax = 10;
 
-y=5;
-x=16;
+y=0;
+x=0;
 
 if (x>kmax) {
 	x = kmax;
@@ -84,6 +84,7 @@ if ((output_row == 0)&&(output_col==0)){
     p_out.user = 0;
 }
 
+
 //map buffer to virtual buffer
 for (j=0;j<(2*kmax+2);j++) {
     virtual_buffer[(j+output_row_offset)%(2*kmax+1)] = buffer[storage_col][j];
@@ -102,9 +103,30 @@ for (j= -kmax;j<=(kmax);j++) {
 		channel3buffer[storage_col] += GB(virtual_buffer[jj]);
 	}
 }
-channel1buffer[storage_col] = channel1buffer[storage_col]/(2*y+1);
-channel2buffer[storage_col] = channel2buffer[storage_col]/(2*y+1);
-channel3buffer[storage_col] = channel3buffer[storage_col]/(2*y+1);
+
+//instead of slow and inaccurate integer division, convert it to shift
+uint8_t yshift = 0;
+uint16_t yy = 2*y+1;
+for (uint16_t j =0;j<1;j++) {
+	yy >> 1;
+	if (yy!=0) {
+		yshift++;
+	}
+}
+
+channel1buffer[storage_col] = channel1buffer[storage_col]>>yshift;
+channel2buffer[storage_col] = channel2buffer[storage_col]>>yshift;
+channel3buffer[storage_col] = channel3buffer[storage_col]>>yshift;
+
+//instead of slow and inaccurate integer division, convert it to shift
+uint8_t xshift = 0;
+uint16_t xx = 2*x+1;
+for (uint16_t i =0;i<1;i++) {
+	xx >> 1;
+	if (xx!=0) {
+		xshift++;
+	}
+}
 
 //compute the kernel in the horizontal axis and output it
 for (i = -kmax;i<=kmax;i++) {
@@ -116,10 +138,13 @@ for (i = -kmax;i<=kmax;i++) {
 		channel2 += channel2buffer[ii];
 		channel3 += channel3buffer[ii];
 	}
+	channel1 = channel1>>xshift;
+	channel2 = channel2>>xshift;
+	channel3 = channel3>>xshift;
 	//divide the sum to get the average, which is the output
-	channel1_out = SR(channel1/(2*x+1));
-	channel2_out = SG(channel2/(2*x+1));
-	channel3_out = SB(channel3/(2*x+1));
+	channel1_out = SR(channel1);
+	channel2_out = SG(channel2);
+	channel3_out = SB(channel3);
 
 	p_out.data = channel1_out|channel2_out|channel3_out;
 }
