@@ -32,10 +32,7 @@ void avgblur(pixel_stream &src, pixel_stream &dst,uint16_t x, uint16_t y)
 // this aperture is then a 2*x+1 by 2*y+1 grid
 // this can be a user input
 // kmax is the maximum x and y enabled by the hardware
-const uint16_t kmax = 10;
-
-y=0;
-x=0;
+const uint16_t kmax = 8;
 
 if (x>kmax) {
 	x = kmax;
@@ -48,8 +45,6 @@ if (y>kmax) {
 static uint32_t buffer [WIDTH][2*kmax+2];
 //buffers that stores the averages of the vertical dimension, per color channel
 static uint32_t channel1buffer [WIDTH],channel2buffer [WIDTH],channel3buffer [WIDTH];
-//virtual buffer that maps storage to computation
-uint32_t virtual_buffer [2*kmax+2];
 
 //column to store the incoming pixel
 static uint16_t storage_col = 0;
@@ -84,12 +79,6 @@ if ((output_row == 0)&&(output_col==0)){
     p_out.user = 0;
 }
 
-
-//map buffer to virtual buffer
-for (j=0;j<(2*kmax+2);j++) {
-    virtual_buffer[(j+output_row_offset)%(2*kmax+1)] = buffer[storage_col][j];
-}
-
 channel1buffer[storage_col] = 0;
 channel2buffer[storage_col] = 0;
 channel3buffer[storage_col] = 0;
@@ -98,9 +87,10 @@ channel3buffer[storage_col] = 0;
 for (j= -kmax;j<=(kmax);j++) {
 	if ((j>=-y)&&(j<=y)) {
 		int16_t jj = j+kmax+1;
-		channel1buffer[storage_col] += GR(virtual_buffer[jj]);
-		channel2buffer[storage_col] += GG(virtual_buffer[jj]);
-		channel3buffer[storage_col] += GB(virtual_buffer[jj]);
+		uint32_t temp = buffer[storage_col][(jj+2*kmax+1-output_row_offset)%(2*kmax+1)];
+		channel1buffer[storage_col] += GR(temp);
+		channel2buffer[storage_col] += GG(temp);
+		channel3buffer[storage_col] += GB(temp);
 	}
 }
 
@@ -138,10 +128,10 @@ for (i = -kmax;i<=kmax;i++) {
 		channel2 += channel2buffer[ii];
 		channel3 += channel3buffer[ii];
 	}
+	//shift the sum to get the approximate average, which is the output
 	channel1 = channel1>>xshift;
 	channel2 = channel2>>xshift;
 	channel3 = channel3>>xshift;
-	//divide the sum to get the average, which is the output
 	channel1_out = SR(channel1);
 	channel2_out = SG(channel2);
 	channel3_out = SB(channel3);
