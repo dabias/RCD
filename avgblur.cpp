@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include <hls_stream.h>
 #include <ap_axi_sdata.h>
+#include <ap_int.h>
 
 #define WIDTH 1280
 #define HEIGHT 720
@@ -32,7 +33,7 @@ void avgblur(pixel_stream &src, pixel_stream &dst,uint16_t x, uint16_t y)
 // this aperture is then a 2*x+1 by 2*y+1 grid
 // this can be a user input
 // kmax is the maximum x and y enabled by the hardware
-const uint16_t kmax = 8;
+const uint16_t kmax = 10;
 
 if (x>kmax) {
 	x = kmax;
@@ -42,9 +43,10 @@ if (y>kmax) {
 }
 
 // buffer that stores several lines required for blur computation
-static uint32_t buffer [WIDTH][2*kmax+2];
+static ap_uint<24> buffer [WIDTH][2*kmax+2];
 //buffers that stores the averages of the vertical dimension, per color channel
-static uint32_t channel1buffer [WIDTH],channel2buffer [WIDTH],channel3buffer [WIDTH];
+// requires 8 + log2(kmax) bits of precision (to prevent overflow when n=kmax values of 8 bits are added)
+static ap_uint<12> channel1buffer [WIDTH],channel2buffer [WIDTH],channel3buffer [WIDTH];
 
 //column to store the incoming pixel
 static uint16_t storage_col = 0;

@@ -14,8 +14,8 @@ int main ()
 	hls::stream<pixel_data> outputStream;
 	pixel_data streamIn;
 	pixel_data streamOut;
-	uint32_t x = 16;
-	uint32_t y = 16;
+	uint32_t x = 5;
+	uint32_t y = 5;
 
 	// Read input image
 	cv::Mat sourceImg = cv::imread(INPUT_IMG);
